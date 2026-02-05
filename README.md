@@ -44,11 +44,6 @@ npm run package:win     # Windows (exe)
 
 Download from the [Releases](https://github.com/xorrbit/claudedidwhat/releases) page.
 
-> **macOS Note**: You may need to remove the quarantine flag after downloading:
-> ```bash
-> xattr -dr com.apple.quarantine /Applications/Claude\ Did\ What\!.app
-> ```
-
 ## Usage
 
 ### Keyboard Shortcuts
