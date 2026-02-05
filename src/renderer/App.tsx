@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { SessionProvider } from './context/SessionContext'
 import { useSessions } from './hooks/useSessions'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { TabBar } from './components/layout/TabBar'
-import { Session } from './components/layout/Session'
+import { Session, SessionHandle } from './components/layout/Session'
 import { EmptyState } from './components/common/EmptyState'
 import { HelpOverlay } from './components/common/HelpOverlay'
 
@@ -17,6 +17,14 @@ function AppContent() {
   } = useSessions()
 
   const [showHelp, setShowHelp] = useState(false)
+  const sessionRefs = useRef<Map<string, SessionHandle>>(new Map())
+
+  // Focus the active session's terminal (called after Ctrl+Tab on keyup)
+  const focusActiveTerminal = useCallback(() => {
+    if (activeSessionId) {
+      sessionRefs.current.get(activeSessionId)?.focusTerminal()
+    }
+  }, [activeSessionId])
 
   const activeIndex = sessions.findIndex((s) => s.id === activeSessionId)
 
@@ -84,6 +92,7 @@ function AppContent() {
     onPrevTab: handlePrevTab,
     onGoToTab: handleGoToTab,
     onShowHelp: () => setShowHelp(true),
+    onTabSwitched: focusActiveTerminal,
   })
 
   return (
@@ -106,6 +115,13 @@ function AppContent() {
               className={session.id === activeSessionId ? 'h-full' : 'hidden'}
             >
               <Session
+                ref={(handle) => {
+                  if (handle) {
+                    sessionRefs.current.set(session.id, handle)
+                  } else {
+                    sessionRefs.current.delete(session.id)
+                  }
+                }}
                 sessionId={session.id}
                 cwd={session.cwd}
                 isActive={session.id === activeSessionId}

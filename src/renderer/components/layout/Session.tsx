@@ -1,4 +1,4 @@
-import { memo, useRef, useCallback, useEffect } from 'react'
+import { memo, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { ResizableSplit } from './ResizableSplit'
 import { Terminal, TerminalHandle } from '../terminal/Terminal'
 import { DiffPanel } from '../diff/DiffPanel'
@@ -9,12 +9,21 @@ interface SessionProps {
   isActive?: boolean
 }
 
-export const Session = memo(function Session({ sessionId, cwd, isActive }: SessionProps) {
+export interface SessionHandle {
+  focusTerminal: () => void
+}
+
+export const Session = memo(forwardRef<SessionHandle, SessionProps>(
+  function Session({ sessionId, cwd, isActive }, ref) {
   const terminalRef = useRef<TerminalHandle>(null)
 
   const focusTerminal = useCallback(() => {
     terminalRef.current?.focus()
   }, [])
+
+  useImperativeHandle(ref, () => ({
+    focusTerminal,
+  }), [focusTerminal])
 
   // Focus terminal when this session becomes active
   useEffect(() => {
@@ -39,4 +48,4 @@ export const Session = memo(function Session({ sessionId, cwd, isActive }: Sessi
       />
     </div>
   )
-})
+}))

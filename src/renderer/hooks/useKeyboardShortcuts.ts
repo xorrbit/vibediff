@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 
 interface KeyboardShortcutsOptions {
   onNewTab: () => void
@@ -7,6 +7,7 @@ interface KeyboardShortcutsOptions {
   onPrevTab: () => void
   onGoToTab: (index: number) => void
   onShowHelp?: () => void
+  onTabSwitched?: () => void
 }
 
 export function useKeyboardShortcuts({
@@ -16,7 +17,11 @@ export function useKeyboardShortcuts({
   onPrevTab,
   onGoToTab,
   onShowHelp,
+  onTabSwitched,
 }: KeyboardShortcutsOptions): void {
+  // Track if we need to call onTabSwitched after Tab key is released
+  const pendingTabFocusRef = useRef(false)
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey
@@ -45,6 +50,8 @@ export function useKeyboardShortcuts({
         } else {
           onNextTab()
         }
+        // Mark that we need to focus after Tab is released
+        pendingTabFocusRef.current = true
         return
       }
 
@@ -65,8 +72,25 @@ export function useKeyboardShortcuts({
     [onNewTab, onCloseTab, onNextTab, onPrevTab, onGoToTab, onShowHelp]
   )
 
+  const handleKeyUp = useCallback(
+    (e: KeyboardEvent) => {
+      // When Tab key is released and we have a pending focus, trigger it
+      if (e.key === 'Tab' && pendingTabFocusRef.current) {
+        pendingTabFocusRef.current = false
+        e.preventDefault()
+        e.stopPropagation()
+        onTabSwitched?.()
+      }
+    },
+    [onTabSwitched]
+  )
+
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleKeyDown])
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [handleKeyDown, handleKeyUp])
 }
