@@ -2,7 +2,7 @@
   "name": "claudedidwhat",
   "version": "1.0.0",
   "description": "Terminal emulator with integrated code review",
-  "author": "Andrew Orr",
+  "author": "Andrew Orr <andrew@andreworr.ca>",
   "license": "MIT",
   "main": "dist/main/index.js",
   "scripts": {
