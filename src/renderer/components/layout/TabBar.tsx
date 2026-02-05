@@ -22,7 +22,9 @@ export function TabBar({
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-obsidian-border to-transparent opacity-50" />
 
       {/* Draggable area for window movement */}
-      <div className="w-40 flex-shrink-0 app-drag" />
+      <div className="w-40 flex-shrink-0 app-drag flex items-center pl-4">
+        <span className="text-xs text-obsidian-text-muted font-medium">Claude Did What?!</span>
+      </div>
 
       {/* Tabs container */}
       <div className="flex-1 flex items-end overflow-x-auto scrollbar-thin gap-0.5 pt-2">
