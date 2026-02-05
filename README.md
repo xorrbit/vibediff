@@ -63,6 +63,7 @@ The diff panel on the right side features a side-by-side layout:
 - **File list sidebar**: Shows changed files compared to the main branch with color-coded status indicators (Added, Modified, Deleted)
 - **Diff viewer**: Click any file to view its diff with syntax highlighting
 - **Branch-only changes**: Only shows files changed in your branch, not unrelated changes from main/master
+- **Instant file switching**: Diff content is cached for fast navigation between files
 
 Changes are detected in real-time as you edit files. The tab name automatically updates to reflect your current git branch or directory.
 
