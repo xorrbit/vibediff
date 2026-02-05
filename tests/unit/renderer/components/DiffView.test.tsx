@@ -161,6 +161,25 @@ describe('DiffView', () => {
       })
     })
 
+    it('falls back to hardcoded map when TextMate has no grammar', async () => {
+      // TextMate mock in tests/setup.ts returns empty grammars,
+      // so textMateService.getLanguageForFile() returns null and the hardcoded map is used.
+      // All language detection tests above implicitly verify this fallback path.
+      // This test makes that contract explicit.
+      expect(window.electronAPI.grammar.scan).not.toHaveBeenCalled()
+
+      render(
+        <DiffView
+          filePath="main.go"
+          diffContent={{ original: '', modified: '' }}
+          isLoading={false}
+        />
+      )
+
+      const editor = await screen.findByTestId('mock-diff-editor')
+      expect(editor).toHaveAttribute('data-language', 'go')
+    })
+
     it('returns plaintext for null filePath', () => {
       render(
         <DiffView

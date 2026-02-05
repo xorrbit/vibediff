@@ -194,29 +194,19 @@ Core renderer-side module that initializes vscode-textmate/vscode-oniguruma and 
 
 ---
 
-### Task 12: Add unit tests for TextMateService
+### Task 12: Add unit tests for TextMateService ✅
 
 **New file:** `tests/unit/renderer/lib/textmate.test.ts`
 
-Mock `vscode-textmate`, `vscode-oniguruma`, and `window.electronAPI.grammar`. Tests:
-- **Initializes successfully with valid grammars** — mock scan returning 1 grammar, verify `monaco.languages.setTokensProvider` called
-- **Gracefully handles null onig.wasm** — getOnigWasm returns null, service stays uninitialized, no errors thrown
-- **Gracefully handles empty grammars** — scan returns empty array, initialized but no languages wired
-- **getLanguageForFile returns correct language** — after init with a grammar covering `.go`, returns `"go"` for `"main.go"`
-- **getLanguageForFile returns null for unknown extensions** — returns null for extensions not covered by any grammar
-- **Handles initialization failure gracefully** — loadWASM throws, caught and logged, service not initialized
-- **Initialize is idempotent** — calling initialize() twice doesn't double-register
+**Done:** Added 7 tests covering: initialization with valid grammars (verifies `setTokensProvider` and `hasGrammar`), null onig.wasm handling (loadWASM not called), empty grammars (initialized but no languages wired), `getLanguageForFile` with multiple languages, unknown extension returns null, initialization failure (loadWASM throws, caught gracefully), and idempotent initialization (second call is no-op). Uses `vi.hoisted()` + `vi.mock()` for `monaco-editor`, `vscode-oniguruma`, `vscode-textmate`. Uses `vi.resetModules()` + dynamic import to get fresh singleton per test. All 145 tests pass.
 
 ---
 
-### Task 13: Update DiffView tests for TextMate fallback
+### Task 13: Update DiffView tests for TextMate fallback ✅
 
 **File:** `tests/unit/renderer/components/DiffView.test.tsx`
 
-Add test:
-- **Falls back to hardcoded map when TextMate has no grammar** — existing language detection tests continue to pass (TextMate mock returns empty grammars, so fallback is exercised)
-
-This should already work since the mock in `tests/setup.ts` returns empty grammars, meaning `textMateService.getLanguageForFile()` will return `null` and all existing tests pass unchanged.
+**Done:** Added explicit "falls back to hardcoded map when TextMate has no grammar" test that verifies `grammar.scan` was never called (TextMate uninitialized) and the hardcoded `languageMap` is used instead. All 42 existing language detection tests already exercised this fallback path via the empty grammar mock in `tests/setup.ts`. All 146 tests pass.
 
 ---
 
