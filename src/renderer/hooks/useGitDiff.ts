@@ -219,12 +219,13 @@ export function useGitDiff({ sessionId, cwd }: UseGitDiffOptions): UseGitDiffRet
       }
     })
 
-    // Fallback poll every 60s in case watcher misses something
+    // Fallback poll every 5s in case watcher misses something
+    // (on WSL2 the file watcher is disabled, so this is the primary refresh)
     fallbackInterval = setInterval(() => {
       if (!document.hidden && !isRefreshing) {
         loadFiles()
       }
-    }, 60000)
+    }, 5000)
 
     // Refresh when tab becomes visible
     const handleVisibilityChange = () => {

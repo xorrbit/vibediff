@@ -35,6 +35,11 @@ export class FileWatcher {
     // Stop any existing watcher for this session
     this.unwatch(sessionId)
 
+    // WSL2: chokidar polling still stat()s every file in the tree every interval,
+    // which overwhelms the 9P filesystem bridge and starves the event loop.
+    // Skip file watching entirely — useGitDiff falls back to periodic git status.
+    if (IS_WSL) return
+
     const watcher = chokidar.watch(dir, {
       ignored: [
         '**/node_modules/**',
@@ -53,19 +58,17 @@ export class FileWatcher {
       ],
       persistent: true,
       ignoreInitial: true,
-      // WSL2: inotify + awaitWriteFinish blocks the main process event loop,
-      // freezing all window input. Use polling with a relaxed interval instead.
-      usePolling: IS_WSL,
-      interval: IS_WSL ? 2000 : undefined,
+      // Use native fs events (inotify/FSEvents) — WSL2 is excluded above
+      usePolling: false,
       // Handle atomic saves (editors that write to temp file then rename)
-      atomic: !IS_WSL,
-      // awaitWriteFinish polls files at pollInterval - too expensive on WSL2
-      awaitWriteFinish: IS_WSL ? false : {
+      atomic: true,
+      // Slight delay to batch rapid changes
+      awaitWriteFinish: {
         stabilityThreshold: 300,
         pollInterval: 100,
       },
       // Limit depth to avoid watching deeply nested generated dirs
-      depth: IS_WSL ? 6 : 10,
+      depth: 10,
     })
 
     const instance: WatcherInstance = {
