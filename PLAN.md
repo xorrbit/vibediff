@@ -20,7 +20,7 @@ A multiplatform terminal emulator with integrated code review/diff panel for Cla
 1. `00d002b` - Add detailed implementation plan
 2. `5f5fa4e` - Implement complete project scaffold (Phase 1-5)
 3. `4aebd68` - Add keyboard shortcuts and application menu (Phase 6-7 partial)
-4. _(pending)_ - Add test infrastructure and app icons (Phase 7 complete)
+4. `a4d3838` - Add test infrastructure and app icons (Phase 7 complete)
 
 ### Test Infrastructure
 - **Unit Tests**: 40 tests passing (Vitest + React Testing Library)
