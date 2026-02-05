@@ -18,7 +18,6 @@ function AppContent() {
 
   const [showHelp, setShowHelp] = useState(false)
 
-  const activeSession = sessions.find((s) => s.id === activeSessionId)
   const activeIndex = sessions.findIndex((s) => s.id === activeSessionId)
 
   const handleNextTab = useCallback(() => {
@@ -97,8 +96,15 @@ function AppContent() {
         onNewTab={createSession}
       />
       <div className="flex-1 min-h-0">
-        {activeSession ? (
-          <Session key={activeSession.id} session={activeSession} />
+        {sessions.length > 0 ? (
+          sessions.map((session) => (
+            <div
+              key={session.id}
+              className={session.id === activeSessionId ? 'h-full' : 'hidden'}
+            >
+              <Session session={session} />
+            </div>
+          ))
         ) : (
           <EmptyState onCreateSession={createSession} />
         )}

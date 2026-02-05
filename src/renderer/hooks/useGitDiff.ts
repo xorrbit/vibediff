@@ -11,6 +11,7 @@ interface UseGitDiffReturn {
   selectedFile: string | null
   diffContent: DiffContent | null
   isLoading: boolean
+  isDiffLoading: boolean
   error: string | null
   selectFile: (path: string) => void
   refresh: () => void
@@ -21,8 +22,11 @@ export function useGitDiff({ cwd }: UseGitDiffOptions): UseGitDiffReturn {
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [diffContent, setDiffContent] = useState<DiffContent | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isDiffLoading, setIsDiffLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const selectedFileRef = useRef<string | null>(null)
+  const prevCwdRef = useRef<string>(cwd)
+  const initialLoadDone = useRef(false)
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -60,29 +64,65 @@ export function useGitDiff({ cwd }: UseGitDiffOptions): UseGitDiffReturn {
   useEffect(() => {
     const timer = setTimeout(() => {
       loadFiles()
+      initialLoadDone.current = true
     }, 2000) // Wait 2 seconds after mount before first git check
 
     return () => clearTimeout(timer)
-  }, [loadFiles])
+  }, []) // Only run on mount
+
+  // Refresh immediately when cwd changes (after initial load)
+  useEffect(() => {
+    if (prevCwdRef.current !== cwd) {
+      prevCwdRef.current = cwd
+
+      if (initialLoadDone.current) {
+        // Clear selection for new directory
+        setSelectedFile(null)
+        selectedFileRef.current = null
+        setDiffContent(null)
+        setIsLoading(true)
+        loadFiles()
+      }
+    }
+  }, [cwd, loadFiles])
 
   // Load diff when selected file changes (with small delay)
   useEffect(() => {
     if (!selectedFile) {
       setDiffContent(null)
+      setIsDiffLoading(false)
       return
     }
 
-    const timer = setTimeout(async () => {
+    let cancelled = false
+    setIsDiffLoading(true)
+    setDiffContent(null)
+
+    const loadDiff = async () => {
       try {
         const diff = await window.electronAPI.git.getFileDiff(cwd, selectedFile)
-        setDiffContent(diff)
+        if (!cancelled) {
+          setDiffContent(diff)
+        }
       } catch (err) {
         console.error('Failed to load diff:', err)
-        setDiffContent(null)
+        if (!cancelled) {
+          setDiffContent(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setIsDiffLoading(false)
+        }
       }
-    }, 100)
+    }
 
-    return () => clearTimeout(timer)
+    const timer = setTimeout(loadDiff, 100)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+      setIsDiffLoading(false)
+    }
   }, [cwd, selectedFile])
 
   // Poll for file changes every 5 seconds
@@ -110,6 +150,7 @@ export function useGitDiff({ cwd }: UseGitDiffOptions): UseGitDiffReturn {
     selectedFile,
     diffContent,
     isLoading,
+    isDiffLoading,
     error,
     selectFile,
     refresh,

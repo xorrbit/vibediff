@@ -1,4 +1,5 @@
 import { IpcMain } from 'electron'
+import { homedir } from 'os'
 import { FS_CHANNELS } from '@shared/types'
 import { FileWatcher } from '../services/watcher'
 import { sendToRenderer } from '../index'
@@ -14,5 +15,9 @@ export function registerFsHandlers(ipcMain: IpcMain) {
 
   ipcMain.handle(FS_CHANNELS.WATCH_STOP, async (_event, sessionId: string) => {
     fileWatcher.unwatch(sessionId)
+  })
+
+  ipcMain.handle(FS_CHANNELS.GET_HOME_DIR, () => {
+    return homedir()
   })
 }

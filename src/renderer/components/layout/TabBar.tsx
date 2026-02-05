@@ -21,8 +21,16 @@ export function TabBar({
       {/* Draggable area for macOS */}
       <div className="w-20 flex-shrink-0 app-drag" />
 
-      {/* Tabs container */}
-      <div className="flex-1 flex overflow-x-auto scrollbar-thin">
+      {/* Tabs container - double click empty space to create new tab */}
+      <div
+        className="flex-1 flex overflow-x-auto scrollbar-thin"
+        onDoubleClick={(e) => {
+          // Only create new tab if clicking on the container itself, not on a tab
+          if (e.target === e.currentTarget) {
+            onNewTab()
+          }
+        }}
+      >
         {sessions.map((session) => (
           <Tab
             key={session.id}

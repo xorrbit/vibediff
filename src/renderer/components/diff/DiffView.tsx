@@ -1,5 +1,10 @@
 import { memo, lazy, Suspense } from 'react'
 import { DiffContent } from '@shared/types'
+import { loader } from '@monaco-editor/react'
+import * as monaco from 'monaco-editor'
+
+// Configure Monaco to use local files instead of CDN
+loader.config({ monaco })
 
 // Lazy load Monaco to avoid blocking initial render
 const DiffEditor = lazy(() =>

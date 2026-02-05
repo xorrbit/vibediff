@@ -29,6 +29,7 @@ export const FS_CHANNELS = {
   WATCH_STOP: 'fs:watchStop',
   FILE_CHANGED: 'fs:fileChanged',
   SELECT_DIRECTORY: 'fs:selectDirectory',
+  GET_HOME_DIR: 'fs:getHomeDir',
 } as const
 
 // PTY types
@@ -86,6 +87,7 @@ export interface ElectronAPI {
     watchStop: (sessionId: string) => Promise<void>
     onFileChanged: (callback: (event: FileChangeEvent) => void) => () => void
     selectDirectory: () => Promise<string | null>
+    getHomeDir: () => Promise<string>
   }
   menu: {
     onNewTab: (callback: () => void) => () => void

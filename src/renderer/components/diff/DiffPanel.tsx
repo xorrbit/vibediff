@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from 'react'
+import { memo, useState, useEffect, useRef } from 'react'
 import { useGitDiff } from '../../hooks/useGitDiff'
 import { FileList } from './FileList'
 import { DiffView } from './DiffView'
@@ -11,13 +11,19 @@ interface DiffPanelProps {
 export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd }: DiffPanelProps) {
   // Track the terminal's current working directory
   const [terminalCwd, setTerminalCwd] = useState(initialCwd)
+  const cwdRef = useRef(terminalCwd)
+
+  // Keep ref in sync
+  useEffect(() => {
+    cwdRef.current = terminalCwd
+  }, [terminalCwd])
 
   // Poll for terminal cwd changes
   useEffect(() => {
     const pollCwd = async () => {
       try {
         const cwd = await window.electronAPI.pty.getCwd(sessionId)
-        if (cwd && cwd !== terminalCwd) {
+        if (cwd && cwd !== cwdRef.current) {
           setTerminalCwd(cwd)
         }
       } catch {
@@ -30,13 +36,14 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd }:
     const interval = setInterval(pollCwd, 2000)
 
     return () => clearInterval(interval)
-  }, [sessionId, terminalCwd])
+  }, [sessionId])
 
   const {
     files,
     selectedFile,
     diffContent,
     isLoading,
+    isDiffLoading,
     error,
     selectFile,
     refresh,
@@ -104,7 +111,7 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd }:
         <DiffView
           filePath={selectedFile}
           diffContent={diffContent}
-          isLoading={isLoading && !!selectedFile}
+          isLoading={isDiffLoading || (isLoading && !!selectedFile)}
         />
       </div>
     </div>

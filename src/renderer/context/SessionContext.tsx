@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
 import { Session } from '@shared/types'
 
 interface SessionContextType {
@@ -23,34 +23,27 @@ function getSessionName(cwd: string): string {
   return parts[parts.length - 1] || cwd
 }
 
-function getDefaultDirectory(): string {
-  // Try to get home directory from various sources
-  if (typeof process !== 'undefined' && process.env) {
-    const home = process.env.HOME || process.env.USERPROFILE
-    if (typeof home === 'string' && home.length > 0) {
-      return home
-    }
+async function getDefaultDirectory(): Promise<string> {
+  try {
+    return await window.electronAPI.fs.getHomeDir()
+  } catch {
+    // Fallback
+    return '/home'
   }
-  // Fallback for Linux/macOS
-  return '/home'
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<Session[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const initialSessionCreated = useRef(false)
 
   const createSession = useCallback(async (cwd?: string) => {
-    let sessionCwd = cwd
-
-    if (!sessionCwd) {
-      // Show directory picker
-      const selected = await window.electronAPI.fs.selectDirectory()
-      sessionCwd = selected || getDefaultDirectory()
-    }
+    // Use provided cwd or default to home directory
+    let sessionCwd = cwd || await getDefaultDirectory()
 
     // Ensure cwd is a valid string
     if (typeof sessionCwd !== 'string' || sessionCwd.length === 0) {
-      sessionCwd = getDefaultDirectory()
+      sessionCwd = await getDefaultDirectory()
     }
 
     const newSession: Session = {
@@ -83,6 +76,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const setActiveSession = useCallback((id: string) => {
     setActiveSessionId(id)
   }, [])
+
+  // Create initial session on launch
+  useEffect(() => {
+    if (!initialSessionCreated.current) {
+      initialSessionCreated.current = true
+      createSession()
+    }
+  }, [createSession])
 
   return (
     <SessionContext.Provider

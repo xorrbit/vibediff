@@ -76,6 +76,9 @@ const electronAPI: ElectronAPI = {
 
     selectDirectory: (): Promise<string | null> =>
       ipcRenderer.invoke(FS_CHANNELS.SELECT_DIRECTORY),
+
+    getHomeDir: (): Promise<string> =>
+      ipcRenderer.invoke(FS_CHANNELS.GET_HOME_DIR),
   },
 
   menu: {
