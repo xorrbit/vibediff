@@ -1,24 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom scrollbar styles for dark theme */
+/* ============================================
+   Obsidian Studio - Global Styles
+   ============================================ */
+
+:root {
+  --accent-color: #f59e0b;
+  --accent-glow: rgba(245, 158, 11, 0.15);
+}
+
+/* Custom scrollbar - refined and subtle */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3c3c3c;
-  border-radius: 5px;
+  background: #2d2d33;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4c4c4c;
+  background: #3d3d45;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Base styles */
@@ -27,47 +45,174 @@ html, body, #root {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  background: #111113;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #e4e4e7;
 }
 
-/* Focus styles */
+/* Focus styles - refined glow */
 *:focus {
   outline: none;
 }
 
 *:focus-visible {
-  outline: 2px solid #0e639c;
-  outline-offset: -2px;
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
-/* Selection styles */
+/* Selection - warm amber */
 ::selection {
-  background: #264f78;
+  background: rgba(245, 158, 11, 0.3);
   color: #ffffff;
 }
 
-/* Monaco editor overrides */
+/* Monaco editor overrides - deep obsidian */
+.monaco-editor,
 .monaco-editor .margin,
-.monaco-editor .monaco-editor-background {
-  background-color: #1e1e1e !important;
+.monaco-editor .monaco-editor-background,
+.monaco-editor .inputarea.ime-input {
+  background-color: #111113 !important;
 }
 
-/* xterm.js container */
+.monaco-editor .margin {
+  background-color: #0a0a0b !important;
+}
+
+.monaco-diff-editor .editor.modified,
+.monaco-diff-editor .editor.original {
+  background-color: #111113 !important;
+}
+
+/* xterm.js container - seamless */
 .xterm-container {
   height: 100%;
   width: 100%;
+  background: #0a0a0b;
 }
 
 .xterm-container .xterm {
   height: 100%;
-  padding: 8px;
+  padding: 12px 16px;
+}
+
+.xterm-container .xterm-viewport {
+  background: transparent !important;
 }
 
 /* Prevent text selection during resize */
 .resizing {
   user-select: none;
   cursor: col-resize;
+}
+
+/* ============================================
+   Custom Component Utilities
+   ============================================ */
+
+@layer components {
+  /* Glass-like surface effect */
+  .glass-surface {
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.03);
+  }
+
+  /* Subtle noise texture overlay */
+  .noise-texture::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.02;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+
+  /* Accent glow effect */
+  .accent-glow {
+    box-shadow: 0 0 20px -5px rgba(245, 158, 11, 0.4);
+  }
+
+  /* Kbd styling */
+  kbd {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.2rem 0.45rem;
+    background: linear-gradient(180deg, #27272c 0%, #1f1f23 100%);
+    border: 1px solid #2d2d33;
+    border-radius: 4px;
+    box-shadow: 0 2px 0 0 #18181b;
+    color: #a1a1aa;
+  }
+
+  /* Status indicators */
+  .status-added {
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.1);
+  }
+
+  .status-modified {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
+  }
+
+  .status-deleted {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.1);
+  }
+
+  /* Button base */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2
+           font-medium text-sm rounded-lg transition-all duration-200
+           ease-out-expo active:scale-[0.98];
+  }
+
+  .btn-primary {
+    @apply bg-obsidian-accent text-obsidian-void hover:brightness-110
+           shadow-glow-sm hover:shadow-glow;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-obsidian-text-secondary
+           hover:text-obsidian-text hover:bg-obsidian-float;
+  }
+}
+
+/* ============================================
+   Animation Utilities
+   ============================================ */
+
+@layer utilities {
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+}
+
+/* ============================================
+   Window drag region (macOS)
+   ============================================ */
+
+.app-drag {
+  -webkit-app-region: drag;
+}
+
+.app-no-drag {
+  -webkit-app-region: no-drag;
 }

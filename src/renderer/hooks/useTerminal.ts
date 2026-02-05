@@ -14,28 +14,29 @@ interface UseTerminalReturn {
   terminalRef: React.RefObject<HTMLDivElement>
 }
 
+// Obsidian Studio terminal theme - refined and warm
 const TERMINAL_THEME = {
-  background: '#1e1e1e',
-  foreground: '#cccccc',
-  cursor: '#cccccc',
-  cursorAccent: '#1e1e1e',
-  selection: '#264f78',
-  black: '#1e1e1e',
-  red: '#f14c4c',
-  green: '#4ec9b0',
-  yellow: '#dcdcaa',
-  blue: '#569cd6',
-  magenta: '#c586c0',
-  cyan: '#9cdcfe',
-  white: '#cccccc',
-  brightBlack: '#808080',
-  brightRed: '#f14c4c',
-  brightGreen: '#4ec9b0',
-  brightYellow: '#dcdcaa',
-  brightBlue: '#569cd6',
-  brightMagenta: '#c586c0',
-  brightCyan: '#9cdcfe',
-  brightWhite: '#ffffff',
+  background: '#0a0a0b',
+  foreground: '#e4e4e7',
+  cursor: '#f59e0b',
+  cursorAccent: '#0a0a0b',
+  selection: 'rgba(245, 158, 11, 0.25)',
+  black: '#18181b',
+  red: '#f87171',
+  green: '#34d399',
+  yellow: '#fbbf24',
+  blue: '#60a5fa',
+  magenta: '#c084fc',
+  cyan: '#22d3ee',
+  white: '#e4e4e7',
+  brightBlack: '#52525b',
+  brightRed: '#fca5a5',
+  brightGreen: '#6ee7b7',
+  brightYellow: '#fcd34d',
+  brightBlue: '#93c5fd',
+  brightMagenta: '#d8b4fe',
+  brightCyan: '#67e8f9',
+  brightWhite: '#fafafa',
 }
 
 export function useTerminal({ sessionId, cwd }: UseTerminalOptions): UseTerminalReturn {
@@ -102,7 +103,7 @@ export function useTerminal({ sessionId, cwd }: UseTerminalOptions): UseTerminal
       // Create terminal instance with performance optimizations
       terminal = new Terminal({
         theme: TERMINAL_THEME,
-        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        fontFamily: '"JetBrains Mono", "SF Mono", "Fira Code", Menlo, Monaco, monospace',
         fontSize: 13,
         lineHeight: 1.2,
         cursorBlink: true,

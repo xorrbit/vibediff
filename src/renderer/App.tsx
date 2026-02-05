@@ -87,7 +87,10 @@ function AppContent() {
   })
 
   return (
-    <div className="h-screen flex flex-col bg-terminal-bg">
+    <div className="h-screen flex flex-col bg-obsidian-bg relative overflow-hidden">
+      {/* Subtle gradient overlay for depth */}
+      <div className="absolute inset-0 bg-gradient-to-b from-obsidian-void/50 via-transparent to-obsidian-void/30 pointer-events-none" />
+
       <TabBar
         sessions={sessions}
         activeSessionId={activeSessionId}
@@ -95,7 +98,7 @@ function AppContent() {
         onTabClose={closeSession}
         onNewTab={createSession}
       />
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 relative">
         {sessions.length > 0 ? (
           sessions.map((session) => (
             <div

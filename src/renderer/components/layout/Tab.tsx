@@ -6,9 +6,10 @@ interface TabProps {
   isActive: boolean
   onSelect: () => void
   onClose: () => void
+  index: number
 }
 
-export function Tab({ name, fullPath, isActive, onSelect, onClose }: TabProps) {
+export function Tab({ name, fullPath, isActive, onSelect, onClose, index }: TabProps) {
   const [isHovered, setIsHovered] = useState(false)
 
   const handleClose = (e: React.MouseEvent) => {
@@ -19,25 +20,63 @@ export function Tab({ name, fullPath, isActive, onSelect, onClose }: TabProps) {
   return (
     <button
       className={`
-        relative flex items-center gap-2 px-4 py-2 text-sm
-        transition-colors duration-150 border-r border-terminal-border
-        min-w-[180px] max-w-[300px]
+        relative flex items-center gap-2.5 px-4 py-2 text-sm
+        transition-all duration-200 ease-out-expo
+        min-w-[160px] max-w-[260px] group
+        rounded-t-lg
         ${isActive
-          ? 'bg-terminal-bg text-terminal-text'
-          : 'bg-terminal-surface text-terminal-text-muted hover:text-terminal-text'
+          ? 'bg-obsidian-bg text-obsidian-text'
+          : 'bg-transparent text-obsidian-text-muted hover:text-obsidian-text-secondary hover:bg-obsidian-elevated/50'
         }
       `}
       onClick={onSelect}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       title={fullPath}
+      style={{ animationDelay: `${index * 50}ms` }}
     >
-      <span className="truncate flex-1 text-left">{name}</span>
+      {/* Active tab glow indicator */}
+      {isActive && (
+        <>
+          {/* Top accent line */}
+          <div className="absolute top-0 left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-obsidian-accent to-transparent rounded-full" />
+          {/* Bottom connection to content */}
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-obsidian-bg" />
+        </>
+      )}
+
+      {/* Tab icon */}
+      <svg
+        className={`w-3.5 h-3.5 flex-shrink-0 transition-colors duration-200 ${
+          isActive ? 'text-obsidian-accent' : 'text-obsidian-text-ghost'
+        }`}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+        />
+      </svg>
+
+      <span className="truncate flex-1 text-left font-medium">{name}</span>
+
+      {/* Close button */}
       <span
         className={`
-          w-4 h-4 flex items-center justify-center rounded
-          hover:bg-terminal-border transition-colors
-          ${isHovered || isActive ? 'opacity-100' : 'opacity-0'}
+          w-5 h-5 flex items-center justify-center rounded
+          transition-all duration-150
+          ${isHovered || isActive
+            ? 'opacity-100'
+            : 'opacity-0'
+          }
+          ${isHovered
+            ? 'hover:bg-obsidian-deleted/20 hover:text-obsidian-deleted'
+            : ''
+          }
         `}
         onClick={handleClose}
       >
@@ -55,9 +94,6 @@ export function Tab({ name, fullPath, isActive, onSelect, onClose }: TabProps) {
           />
         </svg>
       </span>
-      {isActive && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-terminal-accent" />
-      )}
     </button>
   )
 }

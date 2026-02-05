@@ -26,23 +26,43 @@ export function HelpOverlay({ isOpen, onClose }: HelpOverlayProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+      className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
       onClick={onClose}
     >
+      {/* Backdrop with blur */}
+      <div className="absolute inset-0 bg-obsidian-void/80 backdrop-blur-sm" />
+
+      {/* Modal */}
       <div
-        className="bg-terminal-surface border border-terminal-border rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+        className="
+          relative max-w-md w-full mx-4 animate-slide-up
+          bg-gradient-to-b from-obsidian-elevated to-obsidian-surface
+          border border-obsidian-border rounded-2xl
+          shadow-float overflow-hidden
+        "
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-terminal-text">
-            Keyboard Shortcuts
-          </h2>
+        {/* Header glow line */}
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-obsidian-accent/50 to-transparent" />
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-obsidian-border-subtle">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-obsidian-accent/10 flex items-center justify-center">
+              <svg className="w-4 h-4 text-obsidian-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h2 className="text-base font-semibold text-obsidian-text">
+              Keyboard Shortcuts
+            </h2>
+          </div>
           <button
-            className="text-terminal-text-muted hover:text-terminal-text"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-obsidian-text-muted hover:text-obsidian-text hover:bg-obsidian-float transition-all duration-200"
             onClick={onClose}
           >
             <svg
-              className="w-5 h-5"
+              className="w-4 h-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -57,32 +77,41 @@ export function HelpOverlay({ isOpen, onClose }: HelpOverlayProps) {
           </button>
         </div>
 
-        <div className="space-y-2">
-          {shortcuts.map(({ keys, description }) => (
-            <div
-              key={description}
-              className="flex items-center justify-between py-2 border-b border-terminal-border last:border-0"
-            >
-              <span className="text-terminal-text-muted">{description}</span>
-              <div className="flex gap-1">
-                {keys.map((key, i) => (
-                  <span key={i}>
-                    <kbd className="px-2 py-1 bg-terminal-bg rounded text-xs text-terminal-text font-mono">
-                      {formatKey(key)}
-                    </kbd>
-                    {i < keys.length - 1 && (
-                      <span className="text-terminal-text-muted mx-1">+</span>
-                    )}
-                  </span>
-                ))}
+        {/* Shortcuts list */}
+        <div className="px-6 py-4">
+          <div className="space-y-1">
+            {shortcuts.map(({ keys, description }, index) => (
+              <div
+                key={description}
+                className="flex items-center justify-between py-3 group"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <span className="text-sm text-obsidian-text-secondary group-hover:text-obsidian-text transition-colors">
+                  {description}
+                </span>
+                <div className="flex items-center gap-1">
+                  {keys.map((key, i) => (
+                    <span key={i} className="flex items-center">
+                      <kbd className="group-hover:border-obsidian-accent/30 transition-colors">
+                        {formatKey(key)}
+                      </kbd>
+                      {i < keys.length - 1 && (
+                        <span className="text-obsidian-text-ghost mx-1 text-xs">+</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        <p className="mt-4 text-xs text-terminal-text-muted text-center">
-          Press <kbd className="px-1.5 py-0.5 bg-terminal-bg rounded">Esc</kbd> to close
-        </p>
+        {/* Footer */}
+        <div className="px-6 py-4 bg-obsidian-surface/50 border-t border-obsidian-border-subtle">
+          <p className="text-xs text-obsidian-text-ghost text-center flex items-center justify-center gap-2">
+            Press <kbd className="text-2xs">Esc</kbd> to close
+          </p>
+        </div>
       </div>
     </div>
   )

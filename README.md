@@ -13,7 +13,7 @@ A multiplatform terminal emulator with an integrated code review/diff panel, des
 - **Monaco-powered diff view**: Syntax highlighting with side-by-side comparison
 - **Responsive window**: Window size adapts to your screen (80% of display, centered)
 - **Cross-platform**: Works on macOS, Windows, and Linux
-- **Dark theme**: Easy on the eyes for long coding sessions
+- **Obsidian Studio theme**: A refined dark theme with warm amber accents, JetBrains Mono typography, and polished micro-interactions
 
 ## Installation
 
@@ -73,7 +73,7 @@ Changes are detected in real-time as you edit files. The tab name automatically 
 | Framework | Electron 28 |
 | Language | TypeScript 5.3 |
 | UI | React 18 |
-| Styling | Tailwind CSS 3.4 |
+| Styling | Tailwind CSS 3.4 + JetBrains Mono |
 | Terminal | xterm.js 5.3 |
 | PTY | node-pty 1.0 |
 | Diff View | Monaco Editor 0.45 |

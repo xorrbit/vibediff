@@ -51,34 +51,47 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd }:
 
   if (error) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-terminal-text-muted p-4">
-        <p className="text-sm">{error}</p>
+      <div className="h-full flex flex-col items-center justify-center text-obsidian-text-muted p-8">
+        <div className="w-12 h-12 rounded-full bg-obsidian-deleted/10 flex items-center justify-center mb-4">
+          <svg className="w-6 h-6 text-obsidian-deleted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <p className="text-sm text-center mb-4">{error}</p>
         <button
-          className="mt-2 text-xs text-terminal-accent hover:underline"
+          className="text-xs text-obsidian-accent hover:text-obsidian-accent-dim transition-colors"
           onClick={refresh}
         >
-          Retry
+          Try again
         </button>
       </div>
     )
   }
 
   return (
-    <div className="h-full flex bg-terminal-bg">
+    <div className="h-full flex bg-obsidian-bg">
       {/* File list sidebar */}
-      <div className="w-48 flex-shrink-0 flex flex-col border-r border-terminal-border">
+      <div className="w-56 flex-shrink-0 flex flex-col border-r border-obsidian-border-subtle bg-obsidian-surface/30">
         {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-terminal-border">
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs text-terminal-text-muted uppercase tracking-wide">
-              Changes
-            </span>
-            <span className="text-xs text-terminal-text-muted truncate" title={terminalCwd}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-obsidian-border-subtle">
+          <div className="flex flex-col min-w-0 gap-0.5">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-obsidian-accent animate-glow-pulse" />
+              <span className="text-xs font-medium text-obsidian-text uppercase tracking-wider">
+                Changes
+              </span>
+              {files.length > 0 && (
+                <span className="text-2xs font-mono text-obsidian-text-muted bg-obsidian-float px-1.5 py-0.5 rounded">
+                  {files.length}
+                </span>
+              )}
+            </div>
+            <span className="text-2xs text-obsidian-text-ghost truncate pl-3.5" title={terminalCwd}>
               {terminalCwd.split('/').slice(-2).join('/')}
             </span>
           </div>
           <button
-            className="text-terminal-text-muted hover:text-terminal-text p-1"
+            className="text-obsidian-text-muted hover:text-obsidian-accent p-1.5 rounded transition-all duration-200 hover:bg-obsidian-float"
             onClick={refresh}
             title="Refresh"
           >
@@ -110,7 +123,7 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd }:
       </div>
 
       {/* Diff view */}
-      <div className="flex-1 min-h-0 min-w-0">
+      <div className="flex-1 min-h-0 min-w-0 bg-obsidian-bg">
         <DiffView
           filePath={selectedFile}
           diffContent={diffContent}
