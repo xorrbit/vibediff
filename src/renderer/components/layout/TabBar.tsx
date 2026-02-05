@@ -24,7 +24,7 @@ export function TabBar({
       {/* Draggable area for window movement */}
       <div className="w-40 flex-shrink-0 app-drag flex flex-col justify-center pl-4">
         <span className="text-xs text-obsidian-text-muted font-medium leading-tight">Claude Did What?!</span>
-        <span className="text-[9px] text-obsidian-text-muted/50 leading-tight">by Andrew Orr</span>
+        <span className="text-[9px] text-obsidian-text-muted/50 leading-tight">AI slop by Andrew Orr</span>
       </div>
 
       {/* Tabs container */}
