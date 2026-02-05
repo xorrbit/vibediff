@@ -1,8 +1,8 @@
 # Claude Did What?!
 
-A multiplatform terminal emulator with an integrated code review/diff panel, designed for Claude Code workflows.
+A multiplatform terminal emulator with an integrated code review/diff panel, designed for Claude Code workflows. Another artisanally hand-crafted AI slop project by [Andrew Orr](https://github.com/xorrbit).
 
-![claudedidwhat](resources/icon-128.png)
+![Claude Did What?! Screenshot](assets/claudedidwhat.png)
 
 ## Features
 
