@@ -28,12 +28,11 @@ export const Session = memo(forwardRef<SessionHandle, SessionProps>(
   // Focus terminal when this session becomes active
   useEffect(() => {
     if (isActive) {
-      // Delay to ensure terminal is visible and Tab key processing is complete
-      // (Tab key can interfere with focus on Linux)
-      const timer = setTimeout(() => {
+      // Use rAF to wait for next paint frame before focusing
+      const frameId = requestAnimationFrame(() => {
         focusTerminal()
-      }, 50)
-      return () => clearTimeout(timer)
+      })
+      return () => cancelAnimationFrame(frameId)
     }
   }, [isActive, focusTerminal])
 

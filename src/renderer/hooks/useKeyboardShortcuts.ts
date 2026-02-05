@@ -43,11 +43,13 @@ export function useKeyboardShortcuts({
         e.preventDefault()
         e.stopPropagation()
         const newSessionId = e.shiftKey ? onPrevTab() : onNextTab()
-        // Focus terminal after a delay to let Tab key processing complete
+        // Use double rAF to wait for Tab key event to fully complete
         if (onTabSwitched && newSessionId) {
-          setTimeout(() => {
-            onTabSwitched(newSessionId)
-          }, 100)
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              onTabSwitched(newSessionId)
+            })
+          })
         }
         return
       }

@@ -20,15 +20,15 @@
 
 ## High Priority (Medium Effort)
 
-- [ ] **4. Memoize Tab component**
+- [x] **4. Memoize Tab component**
   - Every tab re-renders when any tab changes
   - **Fix:** Wrap in `React.memo()` with custom comparison
 
-- [ ] **5. Parallelize git operations**
+- [x] **5. Parallelize git operations**
   - `getChangedFiles` runs 4+ git commands sequentially
   - **Fix:** Use `Promise.all` where safe
 
-- [ ] **6. Remove focus delays**
+- [x] **6. Remove focus delays**
   - Arbitrary 50ms + 100ms setTimeout delays when switching tabs
   - **Fix:** Remove or use requestAnimationFrame
 
@@ -39,11 +39,11 @@
   - With 100+ changed files, DOM gets heavy
   - **Fix:** Use react-window or react-virtual
 
-- [ ] **8. Tab hover via CSS**
+- [x] **8. Tab hover via CSS**
   - useState for hover causes re-render on mouse enter/leave
   - **Fix:** Use CSS `:hover` pseudo-class instead
 
-- [ ] **9. Remove dead code**
+- [x] **9. Remove dead code**
   - `useFileWatcher.ts` hook is unused (integrated into useGitDiff)
   - **Fix:** Delete the file
 
@@ -67,3 +67,19 @@
 - Changed macOS `lsof` call from `execSync` to async `exec`
 - Added 1-second CWD cache to avoid repeated lsof calls
 - Linux still uses sync readlinkSync (it's fast enough)
+
+### High Priority #4: Memoize Tab component - DONE
+- Wrapped Tab in `React.memo()`
+- Replaced `useState` for hover with CSS `group-hover`
+- No more re-renders on mouse enter/leave
+
+### High Priority #5: Parallelize git operations - DONE
+- `git.status()` and `getMainBranch()` now run in parallel via `Promise.all`
+
+### High Priority #6: Remove focus delays - DONE
+- Replaced 50ms and 100ms `setTimeout` with `requestAnimationFrame`
+- Tab key uses double rAF to ensure event is fully processed
+
+### Medium Priority #8 & #9 - DONE
+- Tab hover now uses CSS instead of state
+- Deleted unused `useFileWatcher.ts` (functionality integrated into useGitDiff)

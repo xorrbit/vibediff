@@ -124,10 +124,11 @@ export class GitService {
     if (!git) return []
 
     try {
-      const base = baseBranch || (await this.getMainBranch(dir))
-
-      // Get status for working directory changes
-      const status: StatusResult = await git.status()
+      // Run status and main branch detection in parallel
+      const [status, base] = await Promise.all([
+        git.status(),
+        baseBranch ? Promise.resolve(baseBranch) : this.getMainBranch(dir),
+      ])
       const files: ChangedFile[] = []
 
       // Track files we've already added

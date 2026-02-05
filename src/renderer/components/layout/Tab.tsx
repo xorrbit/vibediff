@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo } from 'react'
 
 interface TabProps {
   name: string
@@ -9,9 +9,7 @@ interface TabProps {
   index: number
 }
 
-export function Tab({ name, fullPath, isActive, onSelect, onClose, index }: TabProps) {
-  const [isHovered, setIsHovered] = useState(false)
-
+export const Tab = memo(function Tab({ name, fullPath, isActive, onSelect, onClose, index }: TabProps) {
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation()
     onClose()
@@ -30,8 +28,6 @@ export function Tab({ name, fullPath, isActive, onSelect, onClose, index }: TabP
         }
       `}
       onClick={onSelect}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       title={fullPath}
       style={{ animationDelay: `${index * 50}ms` }}
     >
@@ -64,18 +60,15 @@ export function Tab({ name, fullPath, isActive, onSelect, onClose, index }: TabP
 
       <span className="truncate flex-1 text-left font-medium">{name}</span>
 
-      {/* Close button */}
+      {/* Close button - visible on hover or when active, uses CSS group-hover */}
       <span
         className={`
           w-5 h-5 flex items-center justify-center rounded
           transition-all duration-150
-          ${isHovered || isActive
+          hover:bg-obsidian-deleted/20 hover:text-obsidian-deleted
+          ${isActive
             ? 'opacity-100'
-            : 'opacity-0'
-          }
-          ${isHovered
-            ? 'hover:bg-obsidian-deleted/20 hover:text-obsidian-deleted'
-            : ''
+            : 'opacity-0 group-hover:opacity-100'
           }
         `}
         onClick={handleClose}
@@ -96,4 +89,4 @@ export function Tab({ name, fullPath, isActive, onSelect, onClose, index }: TabP
       </span>
     </button>
   )
-}
+})
