@@ -83,11 +83,11 @@ test.describe('App Launch', () => {
     expect(hasContent.length).toBeGreaterThan(100)
   })
 
-  test('new tab button is visible', async () => {
+  test('tab bar is visible', async () => {
     if (!page) test.skip()
 
-    // Look for the new tab button
-    const newTabButton = page.locator('[title*="New Tab"]')
-    await expect(newTabButton).toBeVisible({ timeout: 5000 })
+    // Look for the tab bar with tabs
+    const tabBar = page.locator('[class*="bg-obsidian-surface"]').first()
+    await expect(tabBar).toBeVisible({ timeout: 5000 })
   })
 })

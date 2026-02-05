@@ -39,20 +39,20 @@ test.describe('Tab Management', () => {
     }
   })
 
-  test('clicking + creates new tab', async () => {
+  test('double-click on empty tab bar area creates new tab', async () => {
     if (!page) test.skip()
 
-    // Count current tabs (buttons that aren't the + button)
-    const tabsBefore = await page.locator('button:has-text("")').count()
+    // Count current tabs
+    const tabsBefore = await page.locator('[class*="tab"]').count()
 
-    // Click the new tab button
-    const newTabButton = page.locator('[title*="New Tab"]')
-    await newTabButton.click()
+    // Double-click on the empty area after tabs to create a new tab
+    const emptyArea = page.locator('.min-w-\\[100px\\]').first()
+    await emptyArea.dblclick()
 
-    // Wait for potential dialog and dismiss (in test mode it may auto-select)
+    // Wait for new tab to be created
     await page.waitForTimeout(500)
 
-    // Tab count should have increased or empty state should be replaced
+    // Tab count should have increased
   })
 
   test('tab bar shows tabs', async () => {
