@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { ChangedFile } from '@shared/types'
 import { FileListItem } from './FileListItem'
+import catjamGif from '../../../../assets/catjam.gif'
 
 interface FileListProps {
   files: ChangedFile[]
@@ -38,11 +39,11 @@ export const FileList = memo(function FileList({
   if (files.length === 0) {
     return (
       <div className="p-6 text-center">
-        <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-obsidian-float/50 flex items-center justify-center">
-          <svg className="w-5 h-5 text-obsidian-text-ghost" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
+        <img
+          src={catjamGif}
+          alt="Catjam"
+          className="w-12 h-12 mx-auto mb-3"
+        />
         <p className="text-xs text-obsidian-text-muted">No changes detected</p>
         <p className="text-2xs text-obsidian-text-ghost mt-1">Working tree is clean</p>
       </div>
