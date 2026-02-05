@@ -62,8 +62,20 @@ Download from the [Releases](https://github.com/xorrbit/claudedidwhat/releases) 
 The diff panel on the right side features a side-by-side layout:
 - **File list sidebar**: Shows changed files compared to the main branch with color-coded status indicators (Added, Modified, Deleted)
 - **Diff viewer**: Click any file to view its diff with syntax highlighting
+- **LFS file filtering**: Automatically excludes files with `diff=lfs` in `.gitattributes` from the diff view
 
 Changes are detected in real-time as you edit files. The tab name automatically updates to reflect your current git branch or directory.
+
+#### Hiding Files from Diff Panel
+
+To exclude files from the diff panel (e.g., large binary files tracked with Git LFS), add them to your `.gitattributes` with the `diff=lfs` attribute:
+
+```
+*.psd filter=lfs diff=lfs merge=lfs -text
+assets/videos/* filter=lfs diff=lfs merge=lfs -text
+```
+
+Any files matching patterns with `diff=lfs` will be automatically filtered out.
 
 ## Tech Stack
 
