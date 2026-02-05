@@ -110,8 +110,11 @@ export function useGitDiff({ cwd }: UseGitDiffOptions): UseGitDiffReturn {
       return
     }
 
+    // Capture file path to avoid stale closure issues
+    const filePath = selectedFile
+
     // Check cache first
-    const cached = diffCache.current.get(selectedFile)
+    const cached = diffCache.current.get(filePath)
     if (cached) {
       setDiffContent(cached)
       setIsDiffLoading(false)
@@ -124,12 +127,12 @@ export function useGitDiff({ cwd }: UseGitDiffOptions): UseGitDiffReturn {
 
     const loadDiff = async () => {
       try {
-        const diff = await window.electronAPI.git.getFileDiff(cwd, selectedFile)
+        const diff = await window.electronAPI.git.getFileDiff(cwd, filePath)
         if (!cancelled) {
           setDiffContent(diff)
-          // Store in cache
+          // Store in cache using captured filePath
           if (diff) {
-            diffCache.current.set(selectedFile, diff)
+            diffCache.current.set(filePath, diff)
           }
         }
       } catch (err) {
