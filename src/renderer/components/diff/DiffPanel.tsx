@@ -1,5 +1,6 @@
 import { memo, useState, useEffect, useRef, useCallback } from 'react'
 import { useGitDiff } from '../../hooks/useGitDiff'
+import { useResizable } from '../../hooks/useResizable'
 import { FileList } from './FileList'
 import { DiffView } from './DiffView'
 
@@ -50,6 +51,12 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
     refresh,
   } = useGitDiff({ sessionId, cwd: terminalCwd })
 
+  const { ratio, isDragging, handleMouseDown } = useResizable({
+    initialRatio: 0.35,
+    minRatio: 0.15,
+    maxRatio: 0.5,
+  })
+
   // Wrapper that selects the file and returns focus to terminal
   const handleSelectFile = useCallback((path: string) => {
     selectFile(path)
@@ -78,7 +85,10 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
   return (
     <div className="h-full flex bg-obsidian-bg">
       {/* File list sidebar */}
-      <div className="w-56 flex-shrink-0 flex flex-col border-r border-obsidian-border-subtle bg-obsidian-surface/30">
+      <div
+        className="flex-shrink-0 flex flex-col bg-obsidian-surface/30"
+        style={{ width: `${ratio * 100}%` }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-obsidian-border-subtle">
           <div className="flex flex-col min-w-0 gap-0.5">
@@ -129,8 +139,45 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
         </div>
       </div>
 
+      {/* Resizable divider */}
+      <div
+        className={`
+          relative w-px cursor-col-resize flex-shrink-0 group
+          ${isDragging ? 'w-0.5' : ''}
+        `}
+        onMouseDown={handleMouseDown}
+      >
+        {/* Base line */}
+        <div className={`
+          absolute inset-y-0 left-0 w-px
+          transition-all duration-200
+          ${isDragging
+            ? 'bg-obsidian-accent shadow-glow'
+            : 'bg-obsidian-border-subtle group-hover:bg-obsidian-accent/50'
+          }
+        `} />
+
+        {/* Hover/drag indicator - wider hit area */}
+        <div className="absolute inset-y-0 -left-1.5 w-3 cursor-col-resize" />
+
+        {/* Grab handle indicator on hover */}
+        <div className={`
+          absolute top-1/2 -translate-y-1/2 -left-1 w-2.5 h-8
+          flex flex-col items-center justify-center gap-0.5
+          opacity-0 group-hover:opacity-100 transition-opacity duration-200
+          ${isDragging ? 'opacity-100' : ''}
+        `}>
+          <div className={`w-0.5 h-0.5 rounded-full ${isDragging ? 'bg-obsidian-accent' : 'bg-obsidian-text-muted'}`} />
+          <div className={`w-0.5 h-0.5 rounded-full ${isDragging ? 'bg-obsidian-accent' : 'bg-obsidian-text-muted'}`} />
+          <div className={`w-0.5 h-0.5 rounded-full ${isDragging ? 'bg-obsidian-accent' : 'bg-obsidian-text-muted'}`} />
+        </div>
+      </div>
+
       {/* Diff view */}
-      <div className="flex-1 min-h-0 min-w-0 bg-obsidian-bg">
+      <div
+        className="min-h-0 min-w-0 bg-obsidian-bg"
+        style={{ width: `${(1 - ratio) * 100}%` }}
+      >
         <DiffView
           filePath={selectedFile}
           diffContent={diffContent}
