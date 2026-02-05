@@ -88,7 +88,7 @@ Changes are detected in real-time as you edit files. The tab name automatically 
 # Run development server with hot reload
 npm run dev
 
-# Run unit tests (40 tests)
+# Run unit tests
 npm run test:unit
 
 # Run E2E tests
