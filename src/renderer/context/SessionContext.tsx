@@ -82,7 +82,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const newActiveIndex = Math.min(closedIndex, newSessions.length - 1)
         setActiveSessionId(newSessions[newActiveIndex].id)
       } else if (newSessions.length === 0) {
-        setActiveSessionId(null)
+        // Quit the app when the last tab is closed
+        window.electronAPI.window.quit()
       }
 
       return newSessions

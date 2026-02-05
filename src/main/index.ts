@@ -96,6 +96,10 @@ function registerIpcHandlers() {
   ipcMain.on('window:close', () => {
     mainWindow?.close()
   })
+
+  ipcMain.on('app:quit', () => {
+    app.quit()
+  })
 }
 
 app.whenReady().then(() => {
