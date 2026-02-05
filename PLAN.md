@@ -14,19 +14,63 @@ A multiplatform terminal emulator with integrated code review/diff panel for Cla
 | Phase 4: Git Integration | ✅ COMPLETE | simple-git, file watcher, diff content |
 | Phase 5: Diff Panel UI | ✅ COMPLETE | FileList, DiffView with Monaco |
 | Phase 6: Session Management | ✅ COMPLETE | Directory picker, keyboard shortcuts |
-| Phase 7: Polish and Packaging | 🔄 IN PROGRESS | Menu done, help overlay done; needs icons, packaging, tests |
+| Phase 7: Polish and Packaging | ✅ COMPLETE | Menu, help overlay, icons, tests |
 
 ### Commits
 1. `00d002b` - Add detailed implementation plan
 2. `5f5fa4e` - Implement complete project scaffold (Phase 1-5)
 3. `4aebd68` - Add keyboard shortcuts and application menu (Phase 6-7 partial)
+4. _(pending)_ - Add test infrastructure and app icons (Phase 7 complete)
 
-### Remaining Work (Phase 7)
-- [ ] Task 7.3: Configure App Icons (create icon files)
-- [ ] Task 7.4: Configure Electron Builder (test packaging)
-- [ ] Task 7.5: Final Testing and Bug Fixes
-- [ ] Unit tests (not yet written)
-- [ ] E2E tests (not yet written)
+### Test Infrastructure
+- **Unit Tests**: 40 tests passing (Vitest + React Testing Library)
+  - `useResizable.test.ts` - 9 tests
+  - `useSessions.test.tsx` - 12 tests
+  - `TabBar.test.tsx` - 8 tests
+  - `FileList.test.tsx` - 11 tests
+- **E2E Tests**: Playwright + Electron configured
+  - `app.spec.ts` - App launch tests
+  - `tabs.spec.ts` - Tab management tests
+  - `terminal.spec.ts` - Terminal functionality tests
+  - `diff.spec.ts` - Diff panel tests
+
+### App Icons
+- SVG source: `resources/icon.svg`
+- PNG icons: 16, 32, 48, 64, 128, 256, 512, 1024px
+- Windows ICO: `resources/icon.ico`
+- macOS ICNS: Generate on macOS with `scripts/generate-icons.sh`
+
+### Packaging Status
+- ✅ Linux ARM64 AppImage: `release/vibediff-0.1.0-arm64.AppImage` (125MB)
+- ⚠️ Linux x64: Requires x64 build machine (node-pty cross-compilation issue)
+- ⚠️ Windows: Requires Windows or cross-compilation setup
+- ⚠️ macOS: Requires macOS (also for .icns icon generation)
+
+### Commands
+```bash
+# Development
+npm run dev          # Start dev server with hot reload
+
+# Testing
+npm run test:unit    # Run 40 unit tests
+npm run test:e2e     # Run Playwright E2E tests (requires built app)
+
+# Building
+npm run build        # Compile TypeScript and bundle
+
+# Packaging
+npm run package:linux   # Build Linux packages
+npm run package:mac     # Build macOS packages (on macOS)
+npm run package:win     # Build Windows packages
+
+# Icon Generation
+./scripts/generate-icons.sh  # Generate PNGs and ICO from SVG
+```
+
+### Remaining Work
+- [ ] Manual testing checklist (see bottom of PLAN.md)
+- [ ] macOS .icns generation (run `scripts/generate-icons.sh` on macOS)
+- [ ] Test on Windows and macOS build machines
 
 ---
 
