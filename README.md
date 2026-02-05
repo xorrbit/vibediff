@@ -12,7 +12,7 @@ A multiplatform terminal emulator with an integrated code review/diff panel, des
 - **Real-time git diff**: Automatically detects and displays file changes with side-by-side file list
 - **Monaco-powered diff view**: Syntax highlighting with side-by-side comparison
 - **Cross-platform**: Works on macOS, Windows, and Linux
-- **Obsidian Studio theme**: A refined dark theme with warm amber accents, JetBrains Mono typography, and polished micro-interactions
+- **Streamlined diff view**: Review AI changes faster so you can pretend you read them
 
 ## Installation
 
