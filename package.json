@@ -1,6 +1,6 @@
 {
   "name": "claudedidwhat",
-  "version": "1.0",
+  "version": "1.0.0",
   "description": "Terminal emulator with integrated code review",
   "author": "Andrew Orr",
   "license": "MIT",
