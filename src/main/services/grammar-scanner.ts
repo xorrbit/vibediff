@@ -116,6 +116,13 @@ export class GrammarScanner {
   async getOnigWasm(): Promise<Uint8Array | null> {
     if (this.cachedWasm !== undefined) return this.cachedWasm
 
+    // WSL2: skip WASM loading — avoids filesystem I/O and large IPC
+    // serialization that can block the main process event loop.
+    if (IS_WSL) {
+      this.cachedWasm = null
+      return null
+    }
+
     const possiblePaths = [
       // Development: relative to src/main/services/
       join(__dirname, '../../../node_modules/vscode-oniguruma/release/onig.wasm'),

@@ -1,17 +1,6 @@
 import * as monaco from 'monaco-editor'
-import {
-  createOnigScanner,
-  createOnigString,
-  loadWASM,
-} from 'vscode-oniguruma'
-import {
-  Registry,
-  parseRawGrammar,
-  INITIAL,
-  type StateStack,
-  type IRawGrammar,
-} from 'vscode-textmate'
 import type { GrammarContribution } from '@shared/types'
+import type { StateStack } from 'vscode-textmate'
 
 class TokenizerState implements monaco.languages.IState {
   constructor(private _ruleStack: StateStack) {}
@@ -47,18 +36,27 @@ class TextMateService {
   private async _initialize(): Promise<void> {
     try {
       // Get onig.wasm binary from main process
+      // On WSL2 this returns null immediately (no filesystem I/O)
       const wasmBinary = await window.electronAPI.grammar.getOnigWasm()
       if (!wasmBinary) {
         console.warn('TextMate: onig.wasm not available, using Monarch tokenizers')
         return
       }
 
+      // Dynamically import heavy modules only when we know we need them.
+      // This avoids loading vscode-oniguruma/vscode-textmate at startup
+      // on platforms where TextMate is disabled (e.g. WSL2).
+      const [oniguruma, textmate] = await Promise.all([
+        import('vscode-oniguruma'),
+        import('vscode-textmate'),
+      ])
+
       // IPC may serialize Uint8Array as a plain object — ensure we have a proper ArrayBuffer
       const wasmData = wasmBinary instanceof Uint8Array
         ? wasmBinary.buffer
         : new Uint8Array(Object.values(wasmBinary as unknown as Record<string, number>)).buffer
 
-      await loadWASM(wasmData as ArrayBuffer)
+      await oniguruma.loadWASM(wasmData as ArrayBuffer)
 
       // Scan for grammar contributions
       const scanResult = await window.electronAPI.grammar.scan()
@@ -83,17 +81,20 @@ class TextMateService {
       }
 
       // Create vscode-textmate registry
-      const registry = new Registry({
-        onigLib: Promise.resolve({ createOnigScanner, createOnigString }),
-        loadGrammar: async (scopeName: string): Promise<IRawGrammar | null> => {
+      const registry = new textmate.Registry({
+        onigLib: Promise.resolve({
+          createOnigScanner: oniguruma.createOnigScanner,
+          createOnigString: oniguruma.createOnigString,
+        }),
+        loadGrammar: async (scopeName: string) => {
           const grammar = this.scopeToGrammar.get(scopeName)
           if (!grammar) return null
-          return parseRawGrammar(grammar.rawContent, grammar.grammarPath)
+          return textmate.parseRawGrammar(grammar.rawContent, grammar.grammarPath)
         },
       })
 
       // Wire grammars into Monaco
-      await this.wireGrammarsToMonaco(registry, scanResult.grammars)
+      await this.wireGrammarsToMonaco(registry, scanResult.grammars, textmate.INITIAL)
 
       this.initialized = true
     } catch (err) {
@@ -102,8 +103,9 @@ class TextMateService {
   }
 
   private async wireGrammarsToMonaco(
-    registry: Registry,
+    registry: import('vscode-textmate').Registry,
     grammars: GrammarContribution[],
+    INITIAL: StateStack,
   ): Promise<void> {
     // Group by languageId — first scope per language wins
     const languageToScope = new Map<string, string>()
