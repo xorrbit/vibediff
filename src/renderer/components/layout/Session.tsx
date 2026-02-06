@@ -1,4 +1,4 @@
-import { memo, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { memo, useRef, useCallback, useEffect, useImperativeHandle, type Ref } from 'react'
 import { ResizableSplit } from './ResizableSplit'
 import { Terminal, TerminalHandle } from '../terminal/Terminal'
 import { DiffPanel } from '../diff/DiffPanel'
@@ -10,14 +10,15 @@ interface SessionProps {
   gitRootHint: string | null | undefined
   isActive?: boolean
   onCloseSession: (id: string) => void
+  ref?: Ref<SessionHandle>
 }
 
 export interface SessionHandle {
   focusTerminal: () => void
 }
 
-export const Session = memo(forwardRef<SessionHandle, SessionProps>(
-  function Session({ sessionId, cwd, diffCwd, gitRootHint, isActive, onCloseSession }, ref) {
+export const Session = memo(
+  function Session({ sessionId, cwd, diffCwd, gitRootHint, isActive, onCloseSession, ref }: SessionProps) {
   const terminalRef = useRef<TerminalHandle>(null)
 
   const handleExit = useCallback(() => {
@@ -62,4 +63,4 @@ export const Session = memo(forwardRef<SessionHandle, SessionProps>(
       />
     </div>
   )
-}))
+})

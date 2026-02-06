@@ -1,6 +1,90 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* ============================================
+   Obsidian Studio - Theme
+   ============================================ */
+
+@theme {
+  /* Base tones - deep blacks with subtle warmth */
+  --color-obsidian-void: #0a0a0b;
+  --color-obsidian-bg: #111113;
+  --color-obsidian-surface: #18181b;
+  --color-obsidian-elevated: #1f1f23;
+  --color-obsidian-float: #27272c;
+
+  /* Border system - subtle layering */
+  --color-obsidian-border: #2d2d33;
+  --color-obsidian-border-subtle: #232328;
+  --color-obsidian-border-focus: #3d3d45;
+
+  /* Text hierarchy */
+  --color-obsidian-text: #e4e4e7;
+  --color-obsidian-text-secondary: #a1a1aa;
+  --color-obsidian-text-muted: #71717a;
+  --color-obsidian-text-ghost: #52525b;
+
+  /* Accent - warm amber/gold */
+  --color-obsidian-accent: #f59e0b;
+  --color-obsidian-accent-dim: #d97706;
+  --color-obsidian-accent-glow: rgba(245, 158, 11, 0.15);
+  --color-obsidian-accent-subtle: rgba(245, 158, 11, 0.08);
+
+  /* Status colors */
+  --color-obsidian-added: #34d399;
+  --color-obsidian-added-bg: rgba(52, 211, 153, 0.1);
+  --color-obsidian-modified: #fbbf24;
+  --color-obsidian-modified-bg: rgba(251, 191, 36, 0.1);
+  --color-obsidian-deleted: #f87171;
+  --color-obsidian-deleted-bg: rgba(248, 113, 113, 0.1);
+
+  /* Special */
+  --color-obsidian-selection: rgba(245, 158, 11, 0.2);
+
+  /* Font families */
+  --font-sans: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, monospace;
+
+  /* Font sizes */
+  --text-2xs: 0.65rem;
+  --text-2xs--line-height: 1rem;
+
+  /* Box shadows */
+  --shadow-glow: 0 0 20px -5px rgba(245, 158, 11, 0.3);
+  --shadow-glow-sm: 0 0 10px -3px rgba(245, 158, 11, 0.2);
+  --shadow-elevated: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 8px 30px -4px rgba(0, 0, 0, 0.6);
+  --shadow-inset-border: inset 0 1px 0 0 rgba(255, 255, 255, 0.03);
+
+  /* Animations */
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.3s ease-out;
+  --animate-slide-down: slide-down 0.2s ease-out;
+  --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
+  --animate-spin-slow: spin 2s linear infinite;
+
+  /* Easing */
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes slide-up {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  0% { opacity: 0; transform: translateY(-10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
 
 /* ============================================
    Obsidian Studio - Global Styles
@@ -191,16 +275,16 @@ body {
    Animation Utilities
    ============================================ */
 
-@layer utilities {
-  .animation-delay-100 {
-    animation-delay: 100ms;
-  }
-  .animation-delay-200 {
-    animation-delay: 200ms;
-  }
-  .animation-delay-300 {
-    animation-delay: 300ms;
-  }
+@utility animation-delay-100 {
+  animation-delay: 100ms;
+}
+
+@utility animation-delay-200 {
+  animation-delay: 200ms;
+}
+
+@utility animation-delay-300 {
+  animation-delay: 300ms;
 }
 
 /* ============================================
@@ -214,4 +298,3 @@ body {
 .app-no-drag {
   -webkit-app-region: no-drag;
 }
-

@@ -126,7 +126,6 @@ export function useTerminal({ sessionId, cwd, onExit }: UseTerminalOptions): Use
         cursorStyle: 'block',
         allowProposedApi: true,
         scrollback: 5000, // Limit scrollback for performance
-        fastScrollModifier: 'alt',
         fastScrollSensitivity: 5,
       })
 

@@ -1,18 +1,19 @@
-import { memo, forwardRef, useImperativeHandle } from 'react'
+import { memo, useImperativeHandle, type Ref } from 'react'
 import { useTerminal } from '../../hooks/useTerminal'
 
 interface TerminalProps {
   sessionId: string
   cwd: string
   onExit?: () => void
+  ref?: Ref<TerminalHandle>
 }
 
 export interface TerminalHandle {
   focus: () => void
 }
 
-export const Terminal = memo(forwardRef<TerminalHandle, TerminalProps>(
-  function Terminal({ sessionId, cwd, onExit }, ref) {
+export const Terminal = memo(
+  function Terminal({ sessionId, cwd, onExit, ref }: TerminalProps) {
     const { terminalRef, focus } = useTerminal({ sessionId, cwd, onExit })
 
     useImperativeHandle(ref, () => ({
@@ -25,4 +26,4 @@ export const Terminal = memo(forwardRef<TerminalHandle, TerminalProps>(
       </div>
     )
   }
-))
+)

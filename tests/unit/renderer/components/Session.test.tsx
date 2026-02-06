@@ -14,15 +14,15 @@ vi.mock('@renderer/components/layout/ResizableSplit', () => ({
 }))
 
 vi.mock('@renderer/components/terminal/Terminal', () => ({
-  Terminal: React.forwardRef(function MockTerminal(props: any, ref: any) {
-    React.useImperativeHandle(ref, () => ({
+  Terminal: function MockTerminal(props: any) {
+    React.useImperativeHandle(props.ref, () => ({
       focus: vi.fn(),
     }))
     return React.createElement('div', {
       'data-testid': 'mock-terminal',
       'data-session-id': props.sessionId,
     })
-  }),
+  },
   TerminalHandle: {},
 }))
 
