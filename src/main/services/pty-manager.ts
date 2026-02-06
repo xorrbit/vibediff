@@ -2,11 +2,11 @@ import * as pty from 'node-pty'
 import { platform, tmpdir } from 'os'
 import { existsSync, readlinkSync, mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { detectShell, getShellName } from './shell'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 interface PtyCallbacks {
   onData: (data: string) => void
@@ -38,14 +38,14 @@ function getIntegrationDir(): string {
 
 function ensureShellIntegrationScripts(): void {
   const dir = getIntegrationDir()
-  mkdirSync(dir, { recursive: true })
+  mkdirSync(dir, { recursive: true, mode: 0o700 })
 
   // Bash integration: source user's .bashrc then set up OSC 7 reporting
   const bashScript = `[ -f ~/.bashrc ] && source ~/.bashrc
 __cdw_report_cwd() { printf '\\e]7;file://%s%s\\a' "$HOSTNAME" "$PWD"; }
 PROMPT_COMMAND="__cdw_report_cwd\${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 `
-  writeFileSync(join(dir, 'bash-integration.bash'), bashScript)
+  writeFileSync(join(dir, 'bash-integration.bash'), bashScript, { mode: 0o600 })
 
   // Zsh integration: ZDOTDIR trick
   // .zshenv sources user's .zshenv but keeps ZDOTDIR pointing here
@@ -53,7 +53,7 @@ PROMPT_COMMAND="__cdw_report_cwd\${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
   const zshEnv = `_CDW_ORIG_ZDOTDIR="\${CDW_ORIGINAL_ZDOTDIR:-$HOME}"
 [ -f "$_CDW_ORIG_ZDOTDIR/.zshenv" ] && source "$_CDW_ORIG_ZDOTDIR/.zshenv"
 `
-  writeFileSync(join(dir, '.zshenv'), zshEnv)
+  writeFileSync(join(dir, '.zshenv'), zshEnv, { mode: 0o600 })
 
   // .zshrc sources user's .zshrc, sets up OSC 7, then restores ZDOTDIR
   const zshRc = `[ -f "\${_CDW_ORIG_ZDOTDIR:-$HOME}/.zshrc" ] && source "\${_CDW_ORIG_ZDOTDIR:-$HOME}/.zshrc"
@@ -66,7 +66,7 @@ else
 fi
 unset CDW_ORIGINAL_ZDOTDIR _CDW_ORIG_ZDOTDIR
 `
-  writeFileSync(join(dir, '.zshrc'), zshRc)
+  writeFileSync(join(dir, '.zshrc'), zshRc, { mode: 0o600 })
 }
 
 function getShellIntegration(shellPath: string): ShellIntegration {
@@ -270,9 +270,11 @@ export class PtyManager {
       try {
         // -a = AND conditions, -d cwd = only cwd file descriptor, -p = process ID
         // -F n = output format with 'n' prefix for name field
-        const { stdout } = await execAsync(`lsof -a -d cwd -p ${pid} -F n 2>/dev/null`, {
-          timeout: 1000,
-        })
+        const { stdout } = await execFileAsync(
+          'lsof',
+          ['-a', '-d', 'cwd', '-p', String(pid), '-F', 'n'],
+          { timeout: 1000 }
+        )
         // Output format: "p<pid>\nn<path>\n" - extract line starting with 'n'
         const match = stdout.match(/^n(.+)$/m)
         cwd = match ? match[1] : null

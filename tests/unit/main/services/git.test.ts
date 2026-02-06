@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockExistsSync, mockSimpleGit } = vi.hoisted(() => {
+const { mockExistsSync, mockSimpleGit, mockReadFile } = vi.hoisted(() => {
   const mockGitInstance = {
     branchLocal: vi.fn(),
     getRemotes: vi.fn(),
@@ -12,11 +12,17 @@ const { mockExistsSync, mockSimpleGit } = vi.hoisted(() => {
   return {
     mockExistsSync: vi.fn(),
     mockSimpleGit: vi.fn(() => mockGitInstance),
+    mockReadFile: vi.fn(),
   }
 })
 
 vi.mock('fs', () => {
   const mod = { existsSync: mockExistsSync }
+  return { ...mod, default: mod }
+})
+
+vi.mock('fs/promises', () => {
+  const mod = { readFile: mockReadFile }
   return { ...mod, default: mod }
 })
 
@@ -41,6 +47,8 @@ describe('GitService', () => {
     mockExistsSync.mockImplementation((path: string) => {
       return path === '/repo/.git'
     })
+    // Default: file reads fail (like real fs for nonexistent files)
+    mockReadFile.mockRejectedValue(new Error('ENOENT'))
   })
 
   describe('findGitRoot', () => {
@@ -423,15 +431,11 @@ describe('GitService', () => {
       getGitMock().show.mockResolvedValue('original content')
       getGitMock().getRemotes.mockResolvedValue([{ name: 'origin' }])
       getGitMock().raw.mockResolvedValue('refs/remotes/origin/main\n')
-
-      // Mock fs/promises readFile via dynamic import
-      vi.doMock('fs/promises', () => ({
-        readFile: vi.fn().mockResolvedValue('modified content'),
-      }))
+      mockReadFile.mockResolvedValue('modified content')
 
       const result = await service.getFileDiff('/repo', 'file.ts')
 
-      expect(result).toEqual({ original: 'original content', modified: expect.any(String) })
+      expect(result).toEqual({ original: 'original content', modified: 'modified content' })
     })
 
     it('returns null when not a git repo', async () => {
@@ -446,6 +450,7 @@ describe('GitService', () => {
       getGitMock().show.mockRejectedValue(new Error('not found'))
       getGitMock().getRemotes.mockResolvedValue([{ name: 'origin' }])
       getGitMock().raw.mockResolvedValue('refs/remotes/origin/main\n')
+      mockReadFile.mockResolvedValue('new file content')
 
       const result = await service.getFileDiff('/repo', 'new-file.ts')
 
@@ -473,8 +478,17 @@ describe('GitService', () => {
       expect(getGitMock().show).toHaveBeenCalledWith(['HEAD:file.ts'])
     })
 
-    it('returns null when not a git repo', async () => {
+    it('reads working file when no ref provided', async () => {
+      mockReadFile.mockResolvedValue('working file content')
+
+      const result = await service.getFileContent('/repo', 'src/file.ts')
+
+      expect(result).toBe('working file content')
+    })
+
+    it('returns null when not a git repo and file read fails', async () => {
       mockExistsSync.mockReturnValue(false)
+      // mockReadFile rejects by default (set in beforeEach)
 
       const result = await service.getFileContent('/not-repo', 'file.ts')
 
@@ -485,6 +499,61 @@ describe('GitService', () => {
       getGitMock().show.mockRejectedValue(new Error('not found'))
 
       const result = await service.getFileContent('/repo', 'file.ts', 'HEAD')
+
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('path traversal protection', () => {
+    it('getFileDiff returns null for ../ path traversal', async () => {
+      getGitMock().show.mockResolvedValue('content')
+      getGitMock().getRemotes.mockResolvedValue([{ name: 'origin' }])
+      getGitMock().raw.mockResolvedValue('refs/remotes/origin/main\n')
+      mockReadFile.mockResolvedValue('modified')
+
+      const result = await service.getFileDiff('/repo', '../../etc/passwd')
+
+      expect(result).toBeNull()
+      expect(mockReadFile).not.toHaveBeenCalled()
+    })
+
+    it('getFileDiff allows normal relative paths', async () => {
+      getGitMock().show.mockResolvedValue('original')
+      getGitMock().getRemotes.mockResolvedValue([{ name: 'origin' }])
+      getGitMock().raw.mockResolvedValue('refs/remotes/origin/main\n')
+      mockReadFile.mockResolvedValue('modified')
+
+      const result = await service.getFileDiff('/repo', 'src/file.ts')
+
+      expect(result).not.toBeNull()
+      expect(result!.original).toBe('original')
+    })
+
+    it('getFileContent returns null for ../ path traversal (no ref)', async () => {
+      mockReadFile.mockResolvedValue('secret content')
+
+      const result = await service.getFileContent('/repo', '../../etc/passwd')
+
+      expect(result).toBeNull()
+      expect(mockReadFile).not.toHaveBeenCalled()
+    })
+
+    it('getFileContent allows normal relative paths (no ref)', async () => {
+      mockReadFile.mockResolvedValue('file content')
+
+      const result = await service.getFileContent('/repo', 'src/file.ts')
+
+      expect(result).toBe('file content')
+      expect(mockReadFile).toHaveBeenCalledWith('/repo/src/file.ts', 'utf-8')
+    })
+
+    it('getFileDiff rejects absolute paths', async () => {
+      getGitMock().show.mockResolvedValue('content')
+      getGitMock().getRemotes.mockResolvedValue([{ name: 'origin' }])
+      getGitMock().raw.mockResolvedValue('refs/remotes/origin/main\n')
+      mockReadFile.mockResolvedValue('modified')
+
+      const result = await service.getFileDiff('/repo', '/etc/passwd')
 
       expect(result).toBeNull()
     })

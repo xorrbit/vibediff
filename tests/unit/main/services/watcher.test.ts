@@ -74,6 +74,17 @@ describe('FileWatcher', () => {
       expect(options.ignored).toContain('**/dist/**')
     })
 
+    it('disables symlink following', () => {
+      watcher.watch('session-1', '/project', vi.fn())
+
+      expect(mockChokidarWatch).toHaveBeenCalledWith(
+        '/project',
+        expect.objectContaining({
+          followSymlinks: false,
+        })
+      )
+    })
+
     it('stops existing watcher before creating new one for same session', () => {
       const mock = getWatcherMock()
 

@@ -1,4 +1,14 @@
-import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, screen, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  dialog,
+  nativeImage,
+  screen,
+  session,
+  shell,
+} from 'electron'
 import { execFile } from 'child_process'
 import { readFileSync } from 'fs'
 import { platform } from 'os'
@@ -170,8 +180,24 @@ function registerIpcHandlers() {
 app.whenReady().then(() => {
   console.log('App ready, initializing...')
 
-  // Set dock icon on macOS (without this, dev mode shows the default Electron icon)
-  if (process.platform === 'darwin' && app.dock) {
+  // Set Content-Security-Policy in production only.
+  // Dev mode is excluded: Vite HMR needs WebSocket (ws:) connections and unsafe-eval,
+  // and onHeadersReceived applies to all responses which breaks the dev server.
+  const isDev = process.env.NODE_ENV === 'development' || !!process.env.VITE_DEV_SERVER_URL
+  if (!isDev) {
+    const csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [csp],
+        },
+      })
+    })
+  }
+
+  // Set dock icon on macOS in dev mode (packaged apps use the .icns from the app bundle)
+  if (process.platform === 'darwin' && app.dock && !app.isPackaged) {
     app.dock.setIcon(nativeImage.createFromPath(join(__dirname, '../../resources/icon.png')))
   }
 

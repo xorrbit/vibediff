@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockPtySpawn, mockPlatform, mockExistsSync, mockReadlinkSync, mockExecAsync } = vi.hoisted(() => {
+const { mockPtySpawn, mockPlatform, mockTmpdir, mockExistsSync, mockReadlinkSync, mockExecAsync, mockMkdirSync, mockWriteFileSync } = vi.hoisted(() => {
   const mockPtyProcess = {
     pid: 12345,
     onData: vi.fn(),
@@ -12,9 +12,12 @@ const { mockPtySpawn, mockPlatform, mockExistsSync, mockReadlinkSync, mockExecAs
   return {
     mockPtySpawn: vi.fn(() => mockPtyProcess),
     mockPlatform: vi.fn(),
+    mockTmpdir: vi.fn(() => '/tmp'),
     mockExistsSync: vi.fn(),
     mockReadlinkSync: vi.fn(),
     mockExecAsync: vi.fn(),
+    mockMkdirSync: vi.fn(),
+    mockWriteFileSync: vi.fn(),
   }
 })
 
@@ -24,17 +27,17 @@ vi.mock('node-pty', () => {
 })
 
 vi.mock('os', () => {
-  const mod = { platform: mockPlatform }
+  const mod = { platform: mockPlatform, tmpdir: mockTmpdir }
   return { ...mod, default: mod }
 })
 
 vi.mock('fs', () => {
-  const mod = { existsSync: mockExistsSync, readlinkSync: mockReadlinkSync }
+  const mod = { existsSync: mockExistsSync, readlinkSync: mockReadlinkSync, mkdirSync: mockMkdirSync, writeFileSync: mockWriteFileSync }
   return { ...mod, default: mod }
 })
 
 vi.mock('child_process', () => {
-  const mod = { exec: vi.fn() }
+  const mod = { execFile: vi.fn() }
   return { ...mod, default: mod }
 })
 
@@ -45,6 +48,7 @@ vi.mock('util', () => {
 
 vi.mock('./shell', () => ({
   detectShell: () => ({ path: '/bin/bash', name: 'Bash' }),
+  getShellName: (path: string) => path.split('/').pop() || path,
 }))
 
 import { PtyManager } from '@main/services/pty-manager'
@@ -69,7 +73,7 @@ describe('PtyManager', () => {
 
       expect(mockPtySpawn).toHaveBeenCalledWith(
         '/bin/bash',
-        [],
+        expect.any(Array),
         expect.objectContaining({
           name: 'xterm-256color',
           cols: 80,
@@ -84,7 +88,17 @@ describe('PtyManager', () => {
 
       expect(mockPtySpawn).toHaveBeenCalledWith(
         '/bin/zsh',
-        [],
+        expect.any(Array),
+        expect.anything()
+      )
+    })
+
+    it('passes bash integration args for bash shell', () => {
+      manager.spawn('session-1', '/home/user')
+
+      expect(mockPtySpawn).toHaveBeenCalledWith(
+        '/bin/bash',
+        ['--rcfile', expect.stringContaining('bash-integration.bash')],
         expect.anything()
       )
     })
@@ -109,7 +123,7 @@ describe('PtyManager', () => {
 
       expect(mockPtySpawn).toHaveBeenCalledWith(
         expect.anything(),
-        [],
+        expect.any(Array),
         expect.objectContaining({
           env: expect.objectContaining({
             TERM: 'xterm-256color',
@@ -126,7 +140,7 @@ describe('PtyManager', () => {
 
       expect(mockPtySpawn).toHaveBeenCalledWith(
         expect.anything(),
-        [],
+        expect.any(Array),
         expect.objectContaining({
           useConpty: true,
         })
@@ -140,7 +154,7 @@ describe('PtyManager', () => {
 
       expect(mockPtySpawn).toHaveBeenCalledWith(
         expect.anything(),
-        [],
+        expect.any(Array),
         expect.objectContaining({
           useConpty: false,
         })
@@ -308,6 +322,43 @@ describe('PtyManager', () => {
       const result = await manager.getCwd('session-1')
 
       expect(result).toBeNull()
+    })
+
+    it('calls execFile with args array instead of shell string on macOS', async () => {
+      mockPlatform.mockReturnValue('darwin')
+      manager = new PtyManager()
+      manager.spawn('session-1', '/home/user')
+      mockExecAsync.mockResolvedValue({ stdout: 'p12345\nn/Users/user/project\n' })
+
+      await manager.getCwd('session-1')
+
+      // Verify execFileAsync is called with separate args (not a shell command string)
+      expect(mockExecAsync).toHaveBeenCalledWith(
+        'lsof',
+        ['-a', '-d', 'cwd', '-p', '12345', '-F', 'n'],
+        { timeout: 1000 }
+      )
+    })
+  })
+
+  describe('shell integration security', () => {
+    it('creates temp directory with mode 0o700', () => {
+      manager.spawn('session-1', '/home/user')
+
+      expect(mockMkdirSync).toHaveBeenCalledWith(
+        expect.any(String),
+        { recursive: true, mode: 0o700 }
+      )
+    })
+
+    it('writes integration scripts with mode 0o600', () => {
+      manager.spawn('session-1', '/home/user')
+
+      // All three files should be written with restrictive permissions
+      for (const call of mockWriteFileSync.mock.calls) {
+        expect(call[2]).toEqual({ mode: 0o600 })
+      }
+      expect(mockWriteFileSync).toHaveBeenCalledTimes(3)
     })
   })
 })

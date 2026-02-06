@@ -4,6 +4,18 @@ import { existsSync } from 'fs'
 import { readFile } from 'fs/promises'
 import { join, resolve, dirname } from 'path'
 
+/**
+ * Resolve a repo-relative file path and verify it stays within the repo root.
+ * Returns the resolved absolute path, or null if the path escapes the repo.
+ */
+function resolveRepoPath(gitRoot: string, filePath: string): string | null {
+  const resolved = resolve(gitRoot, filePath)
+  if (!resolved.startsWith(gitRoot + '/') && resolved !== gitRoot) {
+    return null
+  }
+  return resolved
+}
+
 export class GitService {
   // Cache current branch per git root (short TTL — changes on checkout)
   private currentBranchCache = new Map<string, { branch: string | null; timestamp: number }>()
@@ -365,10 +377,14 @@ export class GitService {
     try {
       const base = baseBranch || (await this.getMainBranch(dir)) || 'HEAD'
 
+      // Reject paths that escape the repo root
+      const safePath = resolveRepoPath(result.gitRoot, filePath)
+      if (!safePath) return null
+
       // Fetch original (git show) and modified (working file) in parallel
       const [original, modified] = await Promise.all([
         result.git.show([`${base}:${filePath}`]).catch(() => ''),
-        readFile(join(result.gitRoot, filePath), 'utf-8').catch(() => ''),
+        readFile(safePath, 'utf-8').catch(() => ''),
       ])
 
       return { original, modified }
@@ -394,7 +410,9 @@ export class GitService {
         return await result.git.show([`${ref}:${filePath}`])
       } else {
         const readDir = result?.gitRoot || dir
-        return await readFile(join(readDir, filePath), 'utf-8')
+        const safePath = resolveRepoPath(readDir, filePath)
+        if (!safePath) return null
+        return await readFile(safePath, 'utf-8')
       }
     } catch (error) {
       console.error('Error getting file content:', error)

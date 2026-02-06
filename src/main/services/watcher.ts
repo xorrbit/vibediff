@@ -48,6 +48,7 @@ export class FileWatcher {
     if (IS_WSL) return false
 
     const watcher = chokidar.watch(dir, {
+      followSymlinks: false,
       ignored: [
         '**/node_modules/**',
         '**/.git/**',
