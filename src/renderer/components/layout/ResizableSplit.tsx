@@ -70,7 +70,7 @@ export function ResizableSplit({
 
       {/* Right pane - Diff panel */}
       <div
-        className="h-full overflow-hidden relative"
+        className="h-full relative"
         style={{ width: `${(1 - ratio) * 100}%` }}
       >
         {right}

@@ -6,6 +6,7 @@ interface FileListItemProps {
   isSelected: boolean
   onSelect: (path: string) => void
   index: number
+  isCollapsed?: boolean
 }
 
 const STATUS_CONFIG: Record<FileStatus, { color: string; bg: string; label: string }> = {
@@ -21,6 +22,7 @@ export const FileListItem = memo(function FileListItem({
   isSelected,
   onSelect,
   index,
+  isCollapsed,
 }: FileListItemProps) {
   const config = STATUS_CONFIG[file.status]
 
@@ -32,7 +34,8 @@ export const FileListItem = memo(function FileListItem({
   return (
     <button
       className={`
-        w-full flex items-center gap-3 px-4 py-2 text-left
+        w-full flex items-center gap-3 py-2 text-left
+        ${isCollapsed ? 'px-2' : 'px-4'}
         transition-all duration-150 ease-out group relative
         ${isSelected
           ? 'bg-obsidian-accent/10'
@@ -48,46 +51,50 @@ export const FileListItem = memo(function FileListItem({
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-obsidian-accent rounded-r" />
       )}
 
-      {/* Status badge */}
-      <span className={`
-        w-5 h-5 flex items-center justify-center rounded text-2xs font-mono font-semibold
-        ${config.color} ${config.bg}
-        transition-transform duration-150 group-hover:scale-110
-      `}>
-        {file.status}
-      </span>
-
       {/* File info */}
       <div className="flex-1 min-w-0">
         <span className={`
-          text-sm break-all block font-medium
+          text-sm truncate block font-medium
           ${isSelected ? 'text-obsidian-text' : 'text-obsidian-text-secondary group-hover:text-obsidian-text'}
           transition-colors duration-150
         `}>
           {fileName}
         </span>
         {dirPath && (
-          <span className="text-2xs text-obsidian-text-ghost break-all block">
+          <span className="text-2xs text-obsidian-text-secondary truncate block">
             {dirPath}
           </span>
         )}
       </div>
 
-      {/* Hover chevron */}
-      <svg
-        className={`
-          w-3.5 h-3.5 flex-shrink-0 transition-all duration-150
-          ${isSelected
-            ? 'text-obsidian-accent opacity-100'
-            : 'text-obsidian-text-ghost opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0'
-          }
-        `}
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-      </svg>
+      {/* Status badge — hidden when collapsed */}
+      {!isCollapsed && (
+        <span className={`
+          w-5 h-5 flex-shrink-0 flex items-center justify-center rounded text-2xs font-mono font-semibold
+          ${config.color} ${config.bg}
+          transition-transform duration-150 group-hover:scale-110
+        `}>
+          {file.status}
+        </span>
+      )}
+
+      {/* Hover chevron — hidden when collapsed */}
+      {!isCollapsed && (
+        <svg
+          className={`
+            w-3.5 h-3.5 flex-shrink-0 transition-all duration-150
+            ${isSelected
+              ? 'text-obsidian-accent opacity-100'
+              : 'text-obsidian-text-ghost opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0'
+            }
+          `}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      )}
     </button>
   )
 })

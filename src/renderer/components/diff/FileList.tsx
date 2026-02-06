@@ -8,6 +8,7 @@ interface FileListProps {
   selectedFile: string | null
   onSelectFile: (path: string) => void
   isLoading: boolean
+  isCollapsed?: boolean
 }
 
 export const FileList = memo(function FileList({
@@ -15,6 +16,7 @@ export const FileList = memo(function FileList({
   selectedFile,
   onSelectFile,
   isLoading,
+  isCollapsed,
 }: FileListProps) {
   if (isLoading && files.length === 0) {
     return (
@@ -59,6 +61,7 @@ export const FileList = memo(function FileList({
           isSelected={file.path === selectedFile}
           onSelect={onSelectFile}
           index={index}
+          isCollapsed={isCollapsed}
         />
       ))}
     </div>

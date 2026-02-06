@@ -9,7 +9,7 @@ A multiplatform terminal emulator with an integrated code review/diff panel, des
 - **Split-pane layout**: Terminal on the left (50%), diff viewer on the right (50%), with resizable divider
 - **Smart tab naming**: Tabs show git branch name, or directory name when on main/master or outside a git repo
 - **Multi-tab support**: Manage multiple sessions with keyboard shortcuts
-- **Real-time git diff**: Automatically detects and displays file changes with side-by-side file list
+- **Real-time git diff**: Automatically detects and displays file changes with floating overlay file list
 - **Monaco-powered diff view**: Syntax highlighting with side-by-side comparison
 - **Cross-platform**: Works on macOS, Windows, and Linux
 - **Streamlined diff view**: Review AI changes faster so you can pretend you read them
@@ -59,8 +59,9 @@ Download from the [Releases](https://github.com/xorrbit/claudedidwhat/releases) 
 
 ### Diff Panel
 
-The diff panel on the right side features a side-by-side layout:
-- **File list sidebar**: Shows changed files compared to the main branch with color-coded status indicators (Added, Modified, Deleted)
+The diff panel on the right side features:
+- **Floating file list**: Changed files overlay floats over the terminal with collapsible and resizable panel, color-coded status indicators (Added, Modified, Deleted)
+- **File path header**: Full repo-relative path displayed at the top of the diff view
 - **Diff viewer**: Click any file to view its diff with syntax highlighting
 - **Branch-only changes**: Only shows files changed in your branch, not unrelated changes from main/master
 - **Instant file switching**: Diff content is cached for fast navigation between files
