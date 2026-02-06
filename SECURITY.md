@@ -139,7 +139,7 @@ The production CSP (`default-src 'self'`) silently blocks this external import. 
 
 **Fix:** Bundle JetBrains Mono locally as a `@font-face` asset, or remove the import if fallback fonts are acceptable.
 
-**Status:** Open
+**Status:** Fixed — removed dead import; fallback fonts (SF Mono, Fira Code, Menlo, etc.) are used
 
 ---
 
