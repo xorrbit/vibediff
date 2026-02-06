@@ -192,7 +192,7 @@ Parameters like `ref` and `baseBranch` are interpolated into `simple-git` comman
 
 **Fix:** Validate that `ref` and `baseBranch` match `/^[\w\-\.\/]+$/` or at minimum don't start with `--`.
 
-**Status:** Open — low priority
+**Status:** Fixed
 
 ---
 

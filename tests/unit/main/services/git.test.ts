@@ -559,6 +559,52 @@ describe('GitService', () => {
     })
   })
 
+  describe('git ref argument injection protection', () => {
+    it('getChangedFiles rejects refs starting with --', async () => {
+      const files = await service.getChangedFiles('/repo', '--exec=malicious')
+
+      expect(files).toEqual([])
+      expect(getGitMock().status).not.toHaveBeenCalled()
+    })
+
+    it('getFileDiff rejects refs starting with --', async () => {
+      const result = await service.getFileDiff('/repo', 'file.ts', '--output=/tmp/pwned')
+
+      expect(result).toBeNull()
+      expect(getGitMock().show).not.toHaveBeenCalled()
+    })
+
+    it('getFileContent rejects refs starting with --', async () => {
+      const result = await service.getFileContent('/repo', 'file.ts', '--exec=bad')
+
+      expect(result).toBeNull()
+      expect(getGitMock().show).not.toHaveBeenCalled()
+    })
+
+    it('allows normal branch names like feature/foo-bar', async () => {
+      getGitMock().show.mockResolvedValue('content')
+
+      const result = await service.getFileContent('/repo', 'file.ts', 'feature/foo-bar')
+
+      expect(result).toBe('content')
+      expect(getGitMock().show).toHaveBeenCalledWith(['feature/foo-bar:file.ts'])
+    })
+
+    it('allows commit SHAs', async () => {
+      getGitMock().show.mockResolvedValue('content')
+
+      const result = await service.getFileContent('/repo', 'file.ts', 'abc123def')
+
+      expect(result).toBe('content')
+    })
+
+    it('rejects refs with spaces', async () => {
+      const result = await service.getFileContent('/repo', 'file.ts', 'bad ref')
+
+      expect(result).toBeNull()
+    })
+  })
+
   describe('caching', () => {
     it('caches git root lookup', () => {
       mockExistsSync.mockImplementation((path: string) => path === '/repo/.git')
