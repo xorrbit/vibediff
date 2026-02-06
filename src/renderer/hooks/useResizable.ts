@@ -26,6 +26,21 @@ interface UseResizableReturn {
 export function useResizable(options: UseResizableOptions = {}): UseResizableReturn {
   const isPixel = options.mode === 'pixel'
 
+  // Extract min/max values once — these don't change during a drag,
+  // so we store them in a ref to avoid the effect depending on `options`.
+  const boundsRef = useRef({
+    minRatio: (options as UseResizableRatioOptions).minRatio ?? 0.2,
+    maxRatio: (options as UseResizableRatioOptions).maxRatio ?? 0.8,
+    minWidth: (options as UseResizablePixelOptions).minWidth ?? 120,
+    maxWidth: (options as UseResizablePixelOptions).maxWidth ?? 500,
+  })
+  boundsRef.current = {
+    minRatio: (options as UseResizableRatioOptions).minRatio ?? 0.2,
+    maxRatio: (options as UseResizableRatioOptions).maxRatio ?? 0.8,
+    minWidth: (options as UseResizablePixelOptions).minWidth ?? 120,
+    maxWidth: (options as UseResizablePixelOptions).maxWidth ?? 500,
+  }
+
   const [ratio, setRatio] = useState(
     isPixel ? 0 : ((options as UseResizableRatioOptions).initialRatio ?? 0.6)
   )
@@ -50,11 +65,11 @@ export function useResizable(options: UseResizableOptions = {}): UseResizableRet
       const rect = containerRef.current.getBoundingClientRect()
 
       if (isPixel) {
-        const { minWidth = 120, maxWidth = 500 } = options as UseResizablePixelOptions
+        const { minWidth, maxWidth } = boundsRef.current
         const newWidth = e.clientX - rect.left
         setWidth(Math.min(maxWidth, Math.max(minWidth, newWidth)))
       } else {
-        const { minRatio = 0.2, maxRatio = 0.8 } = options as UseResizableRatioOptions
+        const { minRatio, maxRatio } = boundsRef.current
         const newRatio = (e.clientX - rect.left) / rect.width
         setRatio(Math.min(maxRatio, Math.max(minRatio, newRatio)))
       }
@@ -73,7 +88,7 @@ export function useResizable(options: UseResizableOptions = {}): UseResizableRet
       document.removeEventListener('mouseup', handleMouseUp)
       document.body.classList.remove('resizing')
     }
-  }, [isDragging, isPixel, options])
+  }, [isDragging, isPixel])
 
   return { ratio, width, isDragging, handleMouseDown }
 }

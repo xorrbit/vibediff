@@ -32,11 +32,12 @@ export function TabBar({
         {sessions.map((session, index) => (
           <Tab
             key={session.id}
+            id={session.id}
             name={session.name}
             fullPath={session.cwd}
             isActive={session.id === activeSessionId}
-            onSelect={() => onTabSelect(session.id)}
-            onClose={() => onTabClose(session.id)}
+            onSelect={onTabSelect}
+            onClose={onTabClose}
             index={index}
           />
         ))}

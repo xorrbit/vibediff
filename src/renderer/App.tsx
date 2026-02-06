@@ -18,6 +18,22 @@ function AppContent() {
 
   const [showHelp, setShowHelp] = useState(false)
   const sessionRefs = useRef<Map<string, SessionHandle>>(new Map())
+  // Stable ref callbacks — one per session, cached so Session memo isn't broken
+  const refCallbacks = useRef<Map<string, (handle: SessionHandle | null) => void>>(new Map())
+  const getRefCallback = useCallback((sessionId: string) => {
+    let cb = refCallbacks.current.get(sessionId)
+    if (!cb) {
+      cb = (handle: SessionHandle | null) => {
+        if (handle) sessionRefs.current.set(sessionId, handle)
+        else {
+          sessionRefs.current.delete(sessionId)
+          refCallbacks.current.delete(sessionId)
+        }
+      }
+      refCallbacks.current.set(sessionId, cb)
+    }
+    return cb
+  }, [])
 
   // Focus a specific session's terminal (called after Ctrl+Tab)
   const focusSessionTerminal = useCallback((sessionId: string) => {
@@ -117,13 +133,7 @@ function AppContent() {
               className={session.id === activeSessionId ? 'h-full' : 'hidden'}
             >
               <Session
-                ref={(handle) => {
-                  if (handle) {
-                    sessionRefs.current.set(session.id, handle)
-                  } else {
-                    sessionRefs.current.delete(session.id)
-                  }
-                }}
+                ref={getRefCallback(session.id)}
                 sessionId={session.id}
                 cwd={session.cwd}
                 isActive={session.id === activeSessionId}

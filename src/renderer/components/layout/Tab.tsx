@@ -1,19 +1,21 @@
-import { memo } from 'react'
+import { memo, useCallback } from 'react'
 
 interface TabProps {
+  id: string
   name: string
   fullPath: string
   isActive: boolean
-  onSelect: () => void
-  onClose: () => void
+  onSelect: (id: string) => void
+  onClose: (id: string) => void
   index: number
 }
 
-export const Tab = memo(function Tab({ name, fullPath, isActive, onSelect, onClose, index }: TabProps) {
-  const handleClose = (e: React.MouseEvent) => {
+export const Tab = memo(function Tab({ id, name, fullPath, isActive, onSelect, onClose, index }: TabProps) {
+  const handleSelect = useCallback(() => onSelect(id), [onSelect, id])
+  const handleClose = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
-    onClose()
-  }
+    onClose(id)
+  }, [onClose, id])
 
   return (
     <button
@@ -27,7 +29,7 @@ export const Tab = memo(function Tab({ name, fullPath, isActive, onSelect, onClo
           : 'bg-transparent text-obsidian-text-muted hover:text-obsidian-text-secondary hover:bg-obsidian-elevated/50'
         }
       `}
-      onClick={onSelect}
+      onClick={handleSelect}
       title={fullPath}
       style={{ animationDelay: `${index * 50}ms` }}
     >

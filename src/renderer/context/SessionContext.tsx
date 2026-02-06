@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo, ReactNode } from 'react'
 import { Session } from '@shared/types'
 
 interface SessionContextType {
@@ -48,6 +48,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [sessionCwds, setSessionCwds] = useState<Map<string, string>>(new Map())
   const [sessionGitRoots, setSessionGitRoots] = useState<Map<string, string | null>>(new Map())
   const initialSessionCreated = useRef(false)
+  const activeSessionIdRef = useRef<string | null>(null)
+  activeSessionIdRef.current = activeSessionId
 
   const createSession = useCallback(async (cwd?: string) => {
     // Use provided cwd or default to home directory
@@ -81,7 +83,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const newSessions = prev.filter((s) => s.id !== id)
 
       // If closing active session, switch to another
-      if (activeSessionId === id && newSessions.length > 0) {
+      if (activeSessionIdRef.current === id && newSessions.length > 0) {
         const closedIndex = prev.findIndex((s) => s.id === id)
         const newActiveIndex = Math.min(closedIndex, newSessions.length - 1)
         setActiveSessionId(newSessions[newActiveIndex].id)
@@ -92,7 +94,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       return newSessions
     })
-  }, [activeSessionId])
+  }, [])
 
   const setActiveSession = useCallback((id: string) => {
     setActiveSessionId(id)
@@ -122,7 +124,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const cwdUpdates = new Map<string, string>()
         const gitRootUpdates = new Map<string, string | null>()
 
-        for (const session of sessions) {
+        // Poll all sessions concurrently instead of sequentially
+        await Promise.all(sessions.map(async (session) => {
           try {
             // Get current cwd from terminal
             const currentCwd = await window.electronAPI.pty.getCwd(session.id)
@@ -148,7 +151,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           } catch {
             // Ignore errors
           }
-        }
+        }))
 
         // Update CWDs and git roots
         setSessionCwds(cwdUpdates)
@@ -185,18 +188,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [sessions.length])
 
+  const contextValue = useMemo(() => ({
+    sessions,
+    activeSessionId,
+    sessionCwds,
+    sessionGitRoots,
+    createSession,
+    closeSession,
+    setActiveSession,
+  }), [sessions, activeSessionId, sessionCwds, sessionGitRoots, createSession, closeSession, setActiveSession])
+
   return (
-    <SessionContext.Provider
-      value={{
-        sessions,
-        activeSessionId,
-        sessionCwds,
-        sessionGitRoots,
-        createSession,
-        closeSession,
-        setActiveSession,
-      }}
-    >
+    <SessionContext.Provider value={contextValue}>
       {children}
     </SessionContext.Provider>
   )
