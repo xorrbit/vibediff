@@ -10,7 +10,7 @@ A multiplatform terminal emulator with an integrated code review/diff panel, des
 - **Smart tab naming**: Tabs show git branch name, or directory name when on main/master or outside a git repo
 - **Multi-tab support**: Manage multiple sessions with keyboard shortcuts
 - **Real-time git diff**: Automatically detects and displays file changes with floating overlay file list
-- **Monaco-powered diff view**: Side-by-side comparison with full syntax highlighting
+- **Monaco-powered diff view**: Side-by-side comparison with full syntax highlighting, switchable between Automatic, Unified, and Split layouts
 - **VSCode syntax grammars**: Automatically picks up TextMate grammars from your installed VSCode extensions — if VSCode can highlight it, so can your diffs
 - **Cross-platform**: Works on macOS, Windows, and Linux
 - **Streamlined diff view**: Review AI changes faster so you can pretend you read them
@@ -61,9 +61,9 @@ Download from the [Releases](https://github.com/xorrbit/claudedidwhat/releases) 
 ### Diff Panel
 
 The diff panel on the right side features:
-- **Floating file list**: Changed files overlay floats over the terminal with collapsible and resizable panel, color-coded status indicators (Added, Modified, Deleted)
-- **File path header**: Full repo-relative path displayed at the top of the diff view
-- **Diff viewer**: Click any file to view its diff with syntax highlighting
+- **Floating file list**: Changed files overlay floats over the terminal with collapsible panel, resizable horizontally and vertically via drag handles, color-coded status indicators (Added, Modified, Deleted)
+- **File path header**: Full repo-relative path displayed at the top of the diff view with one-click copy buttons for the full path or just the filename
+- **Diff viewer**: Click any file to view its diff with syntax highlighting — toggle between Automatic, Unified, and Split view modes
 - **Branch-only changes**: Only shows files changed in your branch, not unrelated changes from main/master
 - **Instant file switching**: Diff content is cached for fast navigation between files
 
