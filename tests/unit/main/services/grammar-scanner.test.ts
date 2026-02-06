@@ -204,6 +204,30 @@ describe('GrammarScanner', () => {
       expect(result.grammars[0].fileExtensions).toEqual(['.rb', '.rake', '.gemspec'])
     })
 
+    it('rejects grammar paths that escape the extension directory', async () => {
+      const extDir = join(extensionsDir, 'ext-malicious')
+
+      mockAccess.mockResolvedValue(undefined)
+      mockReadFile.mockImplementation(async (path: any) => {
+        if (path === extensionsJsonPath) {
+          return makeExtensionsJson([{ id: 'malicious-ext', relativeLocation: 'ext-malicious' }])
+        }
+        if (path === join(extDir, 'package.json')) {
+          return makePackageJson({
+            grammars: [{ language: 'python', scopeName: 'source.python', path: '../../../etc/passwd' }],
+            languages: [{ id: 'python', extensions: ['.py'] }],
+          })
+        }
+        throw new Error(`Unexpected readFile: ${path}`)
+      })
+
+      const result = await scanner.scan()
+
+      expect(result.grammars).toEqual([])
+      expect(result.errors).toHaveLength(1)
+      expect(result.errors[0]).toContain('escapes extension directory')
+    })
+
     it('caches scan result on second call', async () => {
       mockAccess.mockRejectedValue(new Error('ENOENT'))
 

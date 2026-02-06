@@ -123,7 +123,7 @@ Grammar paths from extension metadata are resolved and read, but the resolved pa
 
 **Fix:** Resolve the path and verify it starts with `extDir` before reading.
 
-**Status:** Open
+**Status:** Fixed
 
 ---
 
