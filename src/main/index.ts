@@ -69,7 +69,7 @@ function createWindow() {
       preload: join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false, // Required for node-pty
+      sandbox: true,
     },
     frame: false,
     show: false,

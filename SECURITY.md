@@ -75,7 +75,7 @@ The comment says "Required for node-pty" but node-pty runs in the main process, 
 
 **Fix:** Test with `sandbox: true`. It should work since PTY, git, FS, and grammar operations all live in the main process.
 
-**Status:** Open — needs testing
+**Status:** Fixed — enabled `sandbox: true`; node-pty runs in main process, preload only uses `contextBridge`/`ipcRenderer`
 
 ---
 
