@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { TabBar } from '@renderer/components/layout/TabBar'
 import { Session } from '@shared/types'
 
@@ -73,7 +73,7 @@ describe('TabBar', () => {
   it('calls onNewTab when empty space double-clicked', () => {
     const onNewTab = vi.fn()
 
-    const { container } = render(
+    render(
       <TabBar
         sessions={mockSessions}
         activeSessionId="1"
@@ -83,11 +83,35 @@ describe('TabBar', () => {
       />
     )
 
-    // Find the empty space after tabs and double-click it
-    const emptySpace = container.querySelector('.flex-1.min-w-\\[100px\\]')!
+    const emptySpace = screen.getByTestId('tabbar-empty-space')
     fireEvent.doubleClick(emptySpace)
 
     expect(onNewTab).toHaveBeenCalled()
+  })
+
+  it('moves window when empty area is click-dragged', async () => {
+    render(
+      <TabBar
+        sessions={mockSessions}
+        activeSessionId="1"
+        onTabSelect={vi.fn()}
+        onTabClose={vi.fn()}
+        onNewTab={vi.fn()}
+      />
+    )
+
+    const emptySpace = screen.getByTestId('tabbar-empty-space')
+
+    fireEvent.mouseDown(emptySpace, { button: 0, screenX: 200, screenY: 300 })
+    await waitFor(() => {
+      expect(window.electronAPI.window.getPosition).toHaveBeenCalled()
+    })
+
+    fireEvent.mouseMove(window, { screenX: 225, screenY: 340 })
+
+    await waitFor(() => {
+      expect(window.electronAPI.window.setPosition).toHaveBeenCalledWith(125, 140)
+    })
   })
 
   it('shows active tab styling', () => {

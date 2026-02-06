@@ -140,6 +140,8 @@ export interface ElectronAPI {
     maximize: () => void
     close: () => void
     quit: () => void
+    getPosition: () => Promise<{ x: number; y: number }>
+    setPosition: (x: number, y: number) => void
   }
 }
 

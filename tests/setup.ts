@@ -72,6 +72,8 @@ const mockElectronAPI = {
     maximize: vi.fn(),
     close: vi.fn(),
     quit: vi.fn(),
+    getPosition: vi.fn().mockResolvedValue({ x: 100, y: 100 }),
+    setPosition: vi.fn(),
   },
 }
 

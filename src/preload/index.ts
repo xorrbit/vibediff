@@ -134,6 +134,8 @@ const electronAPI: ElectronAPI = {
     maximize: () => ipcRenderer.send('window:maximize'),
     close: () => ipcRenderer.send('window:close'),
     quit: () => ipcRenderer.send('app:quit'),
+    getPosition: () => ipcRenderer.invoke('window:getPosition'),
+    setPosition: (x: number, y: number) => ipcRenderer.send('window:setPosition', x, y),
   },
 }
 

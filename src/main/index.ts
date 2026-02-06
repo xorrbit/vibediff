@@ -113,6 +113,17 @@ function registerIpcHandlers() {
     mainWindow?.close()
   })
 
+  ipcMain.handle('window:getPosition', () => {
+    if (!mainWindow) return { x: 0, y: 0 }
+    const [x, y] = mainWindow.getPosition()
+    return { x, y }
+  })
+
+  ipcMain.on('window:setPosition', (_event, x: number, y: number) => {
+    if (!mainWindow) return
+    mainWindow.setPosition(Math.round(x), Math.round(y))
+  })
+
   ipcMain.on('app:quit', () => {
     app.quit()
   })

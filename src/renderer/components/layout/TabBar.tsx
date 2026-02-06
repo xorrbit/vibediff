@@ -1,3 +1,4 @@
+import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useRef } from 'react'
 import { Session } from '@shared/types'
 import { Tab } from './Tab'
 import logoPng from '../../../../assets/claudedidwhat.png'
@@ -17,6 +18,109 @@ export function TabBar({
   onTabClose,
   onNewTab,
 }: TabBarProps) {
+  const dragStateRef = useRef<{
+    startMouseX: number
+    startMouseY: number
+    startWindowX: number
+    startWindowY: number
+    hasMoved: boolean
+  } | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
+  const pendingPositionRef = useRef<{ x: number; y: number } | null>(null)
+  const suppressDoubleClickUntilRef = useRef(0)
+  const dragRequestCounterRef = useRef(0)
+  const activeDragRequestRef = useRef<number | null>(null)
+
+  const flushPendingWindowPosition = useCallback(() => {
+    const pending = pendingPositionRef.current
+    animationFrameRef.current = null
+    if (!pending) return
+    pendingPositionRef.current = null
+    window.electronAPI.window.setPosition(pending.x, pending.y)
+  }, [])
+
+  const queueWindowPosition = useCallback((x: number, y: number) => {
+    pendingPositionRef.current = { x, y }
+    if (animationFrameRef.current !== null) return
+    animationFrameRef.current = window.requestAnimationFrame(flushPendingWindowPosition)
+  }, [flushPendingWindowPosition])
+
+  const endManualDrag = useCallback(() => {
+    activeDragRequestRef.current = null
+    if (!dragStateRef.current) return
+    if (dragStateRef.current.hasMoved) {
+      suppressDoubleClickUntilRef.current = Date.now() + 250
+    }
+    dragStateRef.current = null
+  }, [])
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      const dragState = dragStateRef.current
+      if (!dragState) return
+
+      const deltaX = event.screenX - dragState.startMouseX
+      const deltaY = event.screenY - dragState.startMouseY
+
+      if (!dragState.hasMoved && Math.abs(deltaX) < 3 && Math.abs(deltaY) < 3) {
+        return
+      }
+
+      dragState.hasMoved = true
+      queueWindowPosition(
+        dragState.startWindowX + deltaX,
+        dragState.startWindowY + deltaY,
+      )
+    }
+
+    const handleMouseUp = () => {
+      endManualDrag()
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('blur', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('blur', handleMouseUp)
+    }
+  }, [endManualDrag, queueWindowPosition])
+
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current === null) return
+      window.cancelAnimationFrame(animationFrameRef.current)
+    }
+  }, [])
+
+  const handleEmptyAreaMouseDown = useCallback(async (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return
+    event.preventDefault()
+
+    const requestId = ++dragRequestCounterRef.current
+    activeDragRequestRef.current = requestId
+    const startMouseX = event.screenX
+    const startMouseY = event.screenY
+
+    const { x, y } = await window.electronAPI.window.getPosition()
+    if (activeDragRequestRef.current !== requestId) return
+
+    dragStateRef.current = {
+      startMouseX,
+      startMouseY,
+      startWindowX: x,
+      startWindowY: y,
+      hasMoved: false,
+    }
+  }, [])
+
+  const handleEmptyAreaDoubleClick = useCallback(() => {
+    if (Date.now() < suppressDoubleClickUntilRef.current) return
+    onNewTab()
+  }, [onNewTab])
+
   return (
     <div className="relative flex items-stretch bg-obsidian-surface border-b border-obsidian-border-subtle z-10">
       {/* Subtle top highlight */}
@@ -48,8 +152,10 @@ export function TabBar({
 
         {/* Empty space after tabs - double-click to open new tab */}
         <div
-          className="flex-1 min-w-[100px] h-full"
-          onDoubleClick={onNewTab}
+          className="flex-1 min-w-[100px] h-full app-no-drag"
+          data-testid="tabbar-empty-space"
+          onMouseDown={handleEmptyAreaMouseDown}
+          onDoubleClick={handleEmptyAreaDoubleClick}
         />
       </div>
 
