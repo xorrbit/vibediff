@@ -322,6 +322,7 @@ describe('GitService', () => {
       getGitMock().status.mockResolvedValue({
         staged: [], modified: [], not_added: [], deleted: [], created: [], renamed: [],
       })
+      getGitMock().raw.mockResolvedValue('sha\n')
       getGitMock().diffSummary.mockResolvedValue({ files: [] })
 
       await service.getChangedFiles('/repo', 'develop')
@@ -357,6 +358,46 @@ describe('GitService', () => {
 
       // Should still return status files despite diff error
       expect(files.length).toBeGreaterThan(0)
+    })
+
+    it('caches branch diff summary when base and HEAD refs are unchanged', async () => {
+      getGitMock().status.mockResolvedValue({
+        staged: [], modified: [], not_added: [], deleted: [], created: [], renamed: [],
+      })
+      getGitMock().raw.mockImplementation((args: string[]) => {
+        if (args[0] === 'rev-parse' && args[1] === 'HEAD') return Promise.resolve('head-sha\n')
+        if (args[0] === 'rev-parse' && args[1] === 'main') return Promise.resolve('base-sha\n')
+        return Promise.resolve('')
+      })
+      getGitMock().diffSummary.mockResolvedValue({
+        files: [{ file: 'cached.ts', insertions: 1, deletions: 1 }],
+      })
+
+      await service.getChangedFiles('/repo', 'main')
+      await service.getChangedFiles('/repo', 'main')
+
+      expect(getGitMock().diffSummary).toHaveBeenCalledTimes(1)
+    })
+
+    it('invalidates branch diff cache when HEAD changes', async () => {
+      let headSha = 'head-sha-1'
+      getGitMock().status.mockResolvedValue({
+        staged: [], modified: [], not_added: [], deleted: [], created: [], renamed: [],
+      })
+      getGitMock().raw.mockImplementation((args: string[]) => {
+        if (args[0] === 'rev-parse' && args[1] === 'HEAD') return Promise.resolve(`${headSha}\n`)
+        if (args[0] === 'rev-parse' && args[1] === 'main') return Promise.resolve('base-sha\n')
+        return Promise.resolve('')
+      })
+      getGitMock().diffSummary.mockResolvedValue({
+        files: [{ file: 'cached.ts', insertions: 1, deletions: 1 }],
+      })
+
+      await service.getChangedFiles('/repo', 'main')
+      headSha = 'head-sha-2'
+      await service.getChangedFiles('/repo', 'main')
+
+      expect(getGitMock().diffSummary).toHaveBeenCalledTimes(2)
     })
 
     it('detects renamed files from status', async () => {

@@ -113,7 +113,7 @@ export interface ElectronAPI {
     findGitRoot: (dir: string) => Promise<string | null>
   }
   fs: {
-    watchStart: (sessionId: string, dir: string) => Promise<void>
+    watchStart: (sessionId: string, dir: string) => Promise<boolean>
     watchStop: (sessionId: string) => Promise<void>
     onFileChanged: (callback: (event: FileChangeEvent) => void) => () => void
     selectDirectory: () => Promise<string | null>

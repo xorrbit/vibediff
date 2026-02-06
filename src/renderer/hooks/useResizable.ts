@@ -49,6 +49,8 @@ export function useResizable(options: UseResizableOptions = {}): UseResizableRet
   )
   const [isDragging, setIsDragging] = useState(false)
   const containerRef = useRef<HTMLElement | null>(null)
+  const resizeRafRef = useRef<number | null>(null)
+  const pendingClientXRef = useRef<number | null>(null)
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -60,22 +62,51 @@ export function useResizable(options: UseResizableOptions = {}): UseResizableRet
   useEffect(() => {
     if (!isDragging) return
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const applyResize = (clientX: number) => {
       if (!containerRef.current) return
       const rect = containerRef.current.getBoundingClientRect()
 
       if (isPixel) {
         const { minWidth, maxWidth } = boundsRef.current
-        const newWidth = e.clientX - rect.left
+        const newWidth = clientX - rect.left
         setWidth(Math.min(maxWidth, Math.max(minWidth, newWidth)))
       } else {
         const { minRatio, maxRatio } = boundsRef.current
-        const newRatio = (e.clientX - rect.left) / rect.width
+        const newRatio = (clientX - rect.left) / rect.width
         setRatio(Math.min(maxRatio, Math.max(minRatio, newRatio)))
       }
     }
 
+    const scheduleFrame = () => {
+      if (resizeRafRef.current !== null) return
+      resizeRafRef.current = requestAnimationFrame(() => {
+        resizeRafRef.current = null
+        if (pendingClientXRef.current === null) return
+        const nextClientX = pendingClientXRef.current
+        pendingClientXRef.current = null
+        applyResize(nextClientX)
+      })
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (resizeRafRef.current === null) {
+        // Keep first drag response immediate, then coalesce fast move events per frame.
+        applyResize(e.clientX)
+        scheduleFrame()
+        return
+      }
+      pendingClientXRef.current = e.clientX
+    }
+
     const handleMouseUp = () => {
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current)
+        resizeRafRef.current = null
+      }
+      if (pendingClientXRef.current !== null) {
+        applyResize(pendingClientXRef.current)
+        pendingClientXRef.current = null
+      }
       setIsDragging(false)
       document.body.classList.remove('resizing')
     }
@@ -86,6 +117,11 @@ export function useResizable(options: UseResizableOptions = {}): UseResizableRet
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current)
+        resizeRafRef.current = null
+      }
+      pendingClientXRef.current = null
       document.body.classList.remove('resizing')
     }
   }, [isDragging, isPixel])

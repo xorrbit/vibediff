@@ -8,7 +8,7 @@ const fileWatcher = new FileWatcher()
 
 export function registerFsHandlers(ipcMain: IpcMain) {
   ipcMain.handle(FS_CHANNELS.WATCH_START, async (_event, sessionId: string, dir: string) => {
-    fileWatcher.watch(sessionId, dir, (event) => {
+    return fileWatcher.watch(sessionId, dir, (event) => {
       sendToRenderer(FS_CHANNELS.FILE_CHANGED, event)
     })
   })

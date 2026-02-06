@@ -46,7 +46,14 @@ export const Session = memo(forwardRef<SessionHandle, SessionProps>(
     <div className="h-full">
       <ResizableSplit
         left={<Terminal ref={terminalRef} sessionId={sessionId} cwd={cwd} onExit={handleExit} />}
-        right={<DiffPanel sessionId={sessionId} cwd={cwd} onFocusTerminal={focusTerminal} />}
+        right={
+          <DiffPanel
+            sessionId={sessionId}
+            cwd={cwd}
+            isActive={!!isActive}
+            onFocusTerminal={focusTerminal}
+          />
+        }
         initialRatio={0.5}
         minRatio={0.2}
         maxRatio={0.8}

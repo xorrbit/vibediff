@@ -49,6 +49,9 @@ const mockElectronAPI = {
     findGitRoot: vi.fn().mockResolvedValue(null),
   },
   fs: {
+    watchStart: vi.fn().mockResolvedValue(true),
+    watchStop: vi.fn().mockResolvedValue(undefined),
+    onFileChanged: vi.fn(() => () => {}),
     selectDirectory: vi.fn(),
     startWatching: vi.fn(),
     stopWatching: vi.fn(),
