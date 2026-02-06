@@ -25,6 +25,7 @@ export const DiffPanel = memo(function DiffPanel({
     isLoading,
     isDiffLoading,
     error,
+    gitRoot,
     selectFile,
     refresh,
   } = useGitDiff(isActive
@@ -282,6 +283,7 @@ export const DiffPanel = memo(function DiffPanel({
             onSelectFile={handleSelectFile}
             isLoading={isLoading}
             isCollapsed={isCollapsed}
+            isGitRepo={gitRoot !== null}
           />
         </div>
 

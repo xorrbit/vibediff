@@ -16,6 +16,7 @@ interface UseGitDiffReturn {
   isLoading: boolean
   isDiffLoading: boolean
   error: string | null
+  gitRoot: string | null
   selectFile: (path: string) => void
   refresh: () => void
 }
@@ -408,6 +409,7 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
     isLoading,
     isDiffLoading,
     error,
+    gitRoot,
     selectFile,
     refresh,
   }

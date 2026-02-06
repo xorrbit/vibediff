@@ -9,6 +9,7 @@ interface FileListProps {
   onSelectFile: (path: string) => void
   isLoading: boolean
   isCollapsed?: boolean
+  isGitRepo?: boolean
 }
 
 export const FileList = memo(function FileList({
@@ -17,6 +18,7 @@ export const FileList = memo(function FileList({
   onSelectFile,
   isLoading,
   isCollapsed,
+  isGitRepo = true,
 }: FileListProps) {
   if (isLoading && files.length === 0) {
     return (
@@ -45,9 +47,14 @@ export const FileList = memo(function FileList({
           src={catjamGif}
           alt="Catjam"
           className="w-12 h-12 mx-auto mb-3"
+          style={isGitRepo ? undefined : { transform: 'scaleX(-1)' }}
         />
-        <p className="text-xs text-obsidian-text-muted">No changes detected</p>
-        <p className="text-2xs text-obsidian-text-ghost mt-1">Working tree is clean</p>
+        <p className="text-xs text-obsidian-text-muted">
+          {isGitRepo ? 'No changes detected' : 'Not in a git repo'}
+        </p>
+        <p className="text-2xs text-obsidian-text-ghost mt-1">
+          {isGitRepo ? 'Working tree is clean' : 'Working tree booked today off'}
+        </p>
       </div>
     )
   }
