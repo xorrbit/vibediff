@@ -1,9 +1,14 @@
 import simpleGit, { SimpleGit, StatusResult } from 'simple-git'
 import { ChangedFile, DiffContent, FileStatus } from '@shared/types'
 import { existsSync } from 'fs'
+import { readFile } from 'fs/promises'
 import { join, resolve, dirname } from 'path'
 
 export class GitService {
+  // Cache current branch per git root (short TTL — changes on checkout)
+  private currentBranchCache = new Map<string, { branch: string | null; timestamp: number }>()
+  private static CURRENT_BRANCH_CACHE_TTL = 2000 // 2 seconds
+
   // Cache main branch per git root (rarely changes during session)
   private mainBranchCache = new Map<string, { branch: string; timestamp: number }>()
   private static MAIN_BRANCH_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
@@ -70,33 +75,44 @@ export class GitService {
   }
 
   /**
-   * Get a cached SimpleGit instance for a directory.
+   * Get a cached SimpleGit instance and its git root for a directory.
    * Resolves to git root first, keys instance by git root.
    */
-  private getGit(dir: string): SimpleGit | null {
+  private getGitWithRoot(dir: string): { git: SimpleGit; gitRoot: string } | null {
     const gitRoot = this.findGitRoot(dir)
-    if (!gitRoot) {
-      return null
-    }
+    if (!gitRoot) return null
 
     let git = this.gitInstances.get(gitRoot)
     if (!git) {
       git = simpleGit(gitRoot)
       this.gitInstances.set(gitRoot, git)
     }
-    return git
+    return { git, gitRoot }
+  }
+
+  private getGit(dir: string): SimpleGit | null {
+    return this.getGitWithRoot(dir)?.git ?? null
   }
 
   /**
    * Get the current branch name.
+   * Cached briefly (2s) to avoid redundant git calls from parallel polling.
    */
   async getCurrentBranch(dir: string): Promise<string | null> {
-    const git = this.getGit(dir)
-    if (!git) return null
+    const result = this.getGitWithRoot(dir)
+    if (!result) return null
+
+    // Check cache (keyed by git root so multiple cwds in the same repo share one entry)
+    const cached = this.currentBranchCache.get(result.gitRoot)
+    if (cached && Date.now() - cached.timestamp < GitService.CURRENT_BRANCH_CACHE_TTL) {
+      return cached.branch
+    }
 
     try {
-      const branches = await git.branchLocal()
-      return branches.current || null
+      const branches = await result.git.branchLocal()
+      const branch = branches.current || null
+      this.currentBranchCache.set(result.gitRoot, { branch, timestamp: Date.now() })
+      return branch
     } catch (error) {
       console.error('Error getting current branch:', error)
       return null
@@ -264,11 +280,8 @@ export class GitService {
     filePath: string,
     baseBranch?: string
   ): Promise<DiffContent | null> {
-    const git = this.getGit(dir)
-    if (!git) return null
-
-    const gitRoot = this.findGitRoot(dir)
-    if (!gitRoot) return null
+    const result = this.getGitWithRoot(dir)
+    if (!result) return null
 
     try {
       const base = baseBranch || (await this.getMainBranch(dir)) || 'HEAD'
@@ -276,7 +289,7 @@ export class GitService {
       // Get original content from base
       let original = ''
       try {
-        original = await git.show([`${base}:${filePath}`])
+        original = await result.git.show([`${base}:${filePath}`])
       } catch {
         // File might be new, no original content
       }
@@ -284,8 +297,7 @@ export class GitService {
       // Get modified content from working directory (use git root since paths are repo-relative)
       let modified = ''
       try {
-        const { readFile } = await import('fs/promises')
-        modified = await readFile(join(gitRoot, filePath), 'utf-8')
+        modified = await readFile(join(result.gitRoot, filePath), 'utf-8')
       } catch {
         // File might be deleted
       }
@@ -305,17 +317,14 @@ export class GitService {
     filePath: string,
     ref?: string
   ): Promise<string | null> {
-    const git = this.getGit(dir)
-    if (!git) return null
-
-    const gitRoot = this.findGitRoot(dir)
+    const result = this.getGitWithRoot(dir)
 
     try {
       if (ref) {
-        return await git.show([`${ref}:${filePath}`])
+        if (!result) return null
+        return await result.git.show([`${ref}:${filePath}`])
       } else {
-        const { readFile } = await import('fs/promises')
-        const readDir = gitRoot || dir
+        const readDir = result?.gitRoot || dir
         return await readFile(join(readDir, filePath), 'utf-8')
       }
     } catch (error) {

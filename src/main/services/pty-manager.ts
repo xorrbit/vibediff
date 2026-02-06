@@ -26,7 +26,7 @@ export class PtyManager {
   private instances: Map<string, PtyInstance> = new Map()
   // Cache CWD results to avoid repeated lsof calls
   private cwdCache: Map<string, CwdCache> = new Map()
-  private static CWD_CACHE_TTL = 1000 // 1 second
+  private static CWD_CACHE_TTL = 2000 // 2 seconds
 
   /**
    * Spawn a new PTY for a session.
