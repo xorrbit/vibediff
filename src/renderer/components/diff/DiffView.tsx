@@ -12,10 +12,13 @@ const DiffEditor = lazy(() =>
   import('@monaco-editor/react').then((mod) => ({ default: mod.DiffEditor }))
 )
 
+export type DiffViewMode = 'auto' | 'unified' | 'split'
+
 interface DiffViewProps {
   filePath: string | null
   diffContent: DiffContent | null
   isLoading: boolean
+  viewMode?: DiffViewMode
 }
 
 // Get language from file extension
@@ -78,9 +81,8 @@ function LoadingFallback() {
 }
 
 // Memoized editor options to prevent unnecessary Monaco updates
-const EDITOR_OPTIONS = {
+const BASE_EDITOR_OPTIONS = {
   readOnly: true,
-  renderSideBySide: true,
   minimap: { enabled: false },
   scrollBeyondLastLine: false,
   fontSize: 13,
@@ -100,35 +102,46 @@ const EDITOR_OPTIONS = {
   hideCursorInOverviewRuler: true,
 }
 
+// Pre-computed per-mode options (stable references for memoization)
+const OPTIONS_AUTO = { ...BASE_EDITOR_OPTIONS, renderSideBySide: true }
+const OPTIONS_UNIFIED = { ...BASE_EDITOR_OPTIONS, renderSideBySide: false }
+const OPTIONS_SPLIT = { ...BASE_EDITOR_OPTIONS, renderSideBySide: true, useInlineViewWhenSpaceIsLimited: false }
+
 // Inner component that handles the actual Monaco rendering
 const DiffEditorContent = memo(function DiffEditorContent({
   original,
   modified,
   language,
+  viewMode = 'auto',
 }: {
   original: string
   modified: string
   language: string
+  viewMode?: DiffViewMode
 }) {
+  const options = viewMode === 'unified' ? OPTIONS_UNIFIED
+    : viewMode === 'split' ? OPTIONS_SPLIT
+    : OPTIONS_AUTO
+
   return (
     <DiffEditor
       original={original}
       modified={modified}
       language={language}
       theme="vs-dark"
-      options={EDITOR_OPTIONS}
+      options={options}
     />
   )
 }, (prevProps, nextProps) => {
-  // Custom comparison - only re-render if content or language actually changed
   return (
     prevProps.original === nextProps.original &&
     prevProps.modified === nextProps.modified &&
-    prevProps.language === nextProps.language
+    prevProps.language === nextProps.language &&
+    prevProps.viewMode === nextProps.viewMode
   )
 })
 
-export const DiffView = memo(function DiffView({ filePath, diffContent, isLoading }: DiffViewProps) {
+export const DiffView = memo(function DiffView({ filePath, diffContent, isLoading, viewMode = 'auto' }: DiffViewProps) {
   const language = useMemo(() => getLanguage(filePath), [filePath])
 
   if (!filePath) {
@@ -174,6 +187,7 @@ export const DiffView = memo(function DiffView({ filePath, diffContent, isLoadin
         original={diffContent.original}
         modified={diffContent.modified}
         language={language}
+        viewMode={viewMode}
       />
     </Suspense>
   )

@@ -2,7 +2,7 @@ import { memo, useCallback, useState, useRef, useEffect } from 'react'
 import { useGitDiff } from '../../hooks/useGitDiff'
 import { useSessionContext } from '../../context/SessionContext'
 import { FileList } from './FileList'
-import { DiffView } from './DiffView'
+import { DiffView, type DiffViewMode } from './DiffView'
 
 interface DiffPanelProps {
   sessionId: string
@@ -33,6 +33,21 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
   const [isResizing, setIsResizing] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // Vertical resize — drag bottom edge to change max height
+  const [fileListHeight, setFileListHeight] = useState<number | null>(null)
+  const [isResizingHeight, setIsResizingHeight] = useState(false)
+  const fileListPanelRef = useRef<HTMLDivElement>(null)
+
+  // Diff view mode toggle
+  const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>('auto')
+  const cycleDiffViewMode = useCallback(() => {
+    setDiffViewMode(prev => {
+      const modes: DiffViewMode[] = ['auto', 'unified', 'split']
+      return modes[(modes.indexOf(prev) + 1) % modes.length]
+    })
+    onFocusTerminal?.()
+  }, [onFocusTerminal])
+
   const toggleCollapsed = useCallback(() => {
     setIsCollapsed(prev => !prev)
     onFocusTerminal?.()
@@ -41,6 +56,12 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
   const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     setIsResizing(true)
+    document.body.classList.add('resizing')
+  }, [])
+
+  const handleHeightResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizingHeight(true)
     document.body.classList.add('resizing')
   }, [])
 
@@ -69,6 +90,33 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
       document.body.classList.remove('resizing')
     }
   }, [isResizing])
+
+  useEffect(() => {
+    if (!isResizingHeight) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!fileListPanelRef.current || !containerRef.current) return
+      const panelTop = fileListPanelRef.current.getBoundingClientRect().top
+      const containerHeight = containerRef.current.getBoundingClientRect().height
+      const maxAllowed = containerHeight * 0.9
+      const newHeight = e.clientY - panelTop
+      setFileListHeight(Math.min(maxAllowed, Math.max(100, newHeight)))
+    }
+
+    const handleMouseUp = () => {
+      setIsResizingHeight(false)
+      document.body.classList.remove('resizing')
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.classList.remove('resizing')
+    }
+  }, [isResizingHeight])
 
   // Wrapper that selects the file and returns focus to terminal
   const handleSelectFile = useCallback((path: string) => {
@@ -99,14 +147,18 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
     <div ref={containerRef} className="h-full relative bg-obsidian-bg">
       {/* Floating file list overlay - positioned over the terminal */}
       <div
-        className="absolute top-0 right-full z-30 max-h-[50%]
+        ref={fileListPanelRef}
+        className="absolute top-0 right-full z-30
                    flex flex-col rounded-bl-xl
                    bg-obsidian-bg
                    border-l border-b border-white/[0.06]
                    shadow-2xl
                    overflow-hidden
                    transition-[width] duration-200 ease-out"
-        style={{ width: isCollapsed ? COLLAPSED_WIDTH : fileListWidth }}
+        style={{
+          width: isCollapsed ? COLLAPSED_WIDTH : fileListWidth,
+          maxHeight: fileListHeight ?? '50%',
+        }}
       >
         {/* Left-edge resize handle — only when expanded */}
         {!isCollapsed && (
@@ -142,7 +194,7 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
           {/* Refresh */}
           <button
             className="text-obsidian-text-muted hover:text-obsidian-accent p-1 rounded transition-all duration-200 hover:bg-obsidian-float/50 flex-shrink-0"
-            onClick={refresh}
+            onClick={() => { refresh(); onFocusTerminal?.() }}
             title="Refresh"
           >
             <svg
@@ -183,16 +235,86 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
             isCollapsed={isCollapsed}
           />
         </div>
+
+        {/* Bottom-edge resize handle */}
+        {!isCollapsed && (
+          <div
+            className={`
+              flex-shrink-0 h-2 cursor-row-resize group/resize-v relative
+              ${isResizingHeight ? '' : 'hover:bg-white/[0.04]'}
+            `}
+            onMouseDown={handleHeightResizeMouseDown}
+          >
+            <div className={`
+              absolute inset-x-0 bottom-0 h-px transition-colors duration-150
+              ${isResizingHeight
+                ? 'bg-obsidian-accent'
+                : 'bg-transparent group-hover/resize-v:bg-obsidian-text-ghost'
+              }
+            `} />
+            <div className={`
+              absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+              w-8 h-0.5 rounded-full transition-colors duration-150
+              ${isResizingHeight
+                ? 'bg-obsidian-accent'
+                : 'bg-white/[0.08] group-hover/resize-v:bg-white/[0.15]'
+              }
+            `} />
+          </div>
+        )}
       </div>
 
       {/* Diff view - full width */}
       <div className="h-full w-full overflow-hidden flex flex-col">
-        {/* Selected file path */}
+        {/* Selected file path + copy buttons + view mode toggle */}
         {selectedFile && (
-          <div className="flex-shrink-0 px-4 py-2 border-b border-obsidian-border-subtle bg-obsidian-surface/30">
-            <span className="text-xs font-mono text-obsidian-text-secondary truncate block">
+          <div className="flex-shrink-0 flex items-center px-4 py-2 border-b border-obsidian-border-subtle bg-obsidian-surface/30 gap-1">
+            {/* Copy full relative path */}
+            <button
+              className="text-obsidian-text-muted hover:text-obsidian-accent p-1 rounded transition-all duration-200 hover:bg-obsidian-float/50 flex-shrink-0"
+              onClick={() => navigator.clipboard.writeText(selectedFile)}
+              title="Copy full path"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h6m4-14h2a2 2 0 012 2v10a2 2 0 01-2 2h-6a2 2 0 01-2-2V7a2 2 0 012-2h2" />
+                <rect x="7" y="3" width="6" height="4" rx="1" />
+              </svg>
+            </button>
+            <span className="text-xs font-mono text-obsidian-text-secondary truncate flex-1 min-w-0">
               {selectedFile}
             </span>
+            {/* Copy filename only */}
+            <button
+              className="text-obsidian-text-muted hover:text-obsidian-accent p-1 rounded transition-all duration-200 hover:bg-obsidian-float/50 flex-shrink-0"
+              onClick={() => navigator.clipboard.writeText(selectedFile.split('/').pop() || selectedFile)}
+              title="Copy filename"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M16 3h2a2 2 0 012 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V5" />
+              </svg>
+            </button>
+            <button
+              className="text-obsidian-text-muted hover:text-obsidian-accent p-1 rounded transition-all duration-200 hover:bg-obsidian-float/50 flex-shrink-0 ml-2"
+              onClick={cycleDiffViewMode}
+              title={`View: ${diffViewMode === 'auto' ? 'Automatic' : diffViewMode === 'unified' ? 'Unified' : 'Split'}`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                {diffViewMode === 'unified' ? (
+                  <rect x="4" y="4" width="16" height="16" rx="2" />
+                ) : diffViewMode === 'split' ? (
+                  <>
+                    <rect x="3" y="4" width="7" height="16" rx="1.5" />
+                    <rect x="14" y="4" width="7" height="16" rx="1.5" />
+                  </>
+                ) : (
+                  <>
+                    <rect x="3" y="4" width="7" height="16" rx="1.5" />
+                    <rect x="14" y="4" width="7" height="16" rx="1.5" />
+                    <path strokeLinecap="round" strokeWidth={1.5} d="M12 9v6m0 0l-1.5-1.5M12 15l1.5-1.5" />
+                  </>
+                )}
+              </svg>
+            </button>
           </div>
         )}
         <div className="flex-1 min-h-0">
@@ -200,6 +322,7 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
             filePath={selectedFile}
             diffContent={diffContent}
             isLoading={isDiffLoading || (isLoading && !!selectedFile)}
+            viewMode={diffViewMode}
           />
         </div>
       </div>
