@@ -48,7 +48,7 @@ for size in "${SIZES[@]}"; do
     if [ "$CONVERT" = "rsvg" ]; then
         rsvg-convert -w "$size" -h "$size" "$SVG_ICON" -o "$output"
     else
-        $CONVERT -background none -resize "${size}x${size}" "$SVG_ICON" "$output"
+        $CONVERT "$SVG_ICON" -background none -resize "${size}x${size}" "$output"
     fi
 done
 
@@ -57,7 +57,7 @@ echo "  Generating icon.png (1024x1024)..."
 if [ "$CONVERT" = "rsvg" ]; then
     rsvg-convert -w 1024 -h 1024 "$SVG_ICON" -o "$RESOURCES_DIR/icon.png"
 else
-    $CONVERT -background none -resize "1024x1024" "$SVG_ICON" "$RESOURCES_DIR/icon.png"
+    $CONVERT "$SVG_ICON" -background none -resize "1024x1024" "$RESOURCES_DIR/icon.png"
 fi
 
 # Generate Windows .ico (contains multiple sizes)
