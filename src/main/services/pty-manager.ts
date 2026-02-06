@@ -26,6 +26,7 @@ interface CwdCache {
 }
 
 // Regex to match OSC 7 escape sequences: \e]7;file://hostname/path\a or \e]7;file://hostname/path\e\\
+// eslint-disable-next-line no-control-regex -- terminal escape sequences intentionally use control characters
 const OSC7_REGEX = /\x1b\]7;file:\/\/[^/]*(\/[^\x07\x1b]*?)(?:\x07|\x1b\\)/
 
 interface ShellIntegration {

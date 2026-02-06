@@ -10,7 +10,7 @@ import { join, resolve, dirname } from 'path'
  * starting with "--" could be interpreted as a git flag by some subcommands.
  */
 function isValidRef(ref: string): boolean {
-  return /^[\w\-.\/]+$/.test(ref)
+  return /^[\w\-./]+$/.test(ref)
 }
 
 /**
