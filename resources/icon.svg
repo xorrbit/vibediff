@@ -1,52 +1,208 @@
-<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background (no rounded corners — macOS applies its own mask) -->
-  <rect width="1024" height="1024" fill="#1E1E1E"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
 
-  <!-- Terminal window frame -->
-  <rect x="80" y="120" width="864" height="784" rx="24" fill="#2D2D2D" stroke="#3E3E3E" stroke-width="4"/>
+  <!-- Dark background -->
+  <rect width="400" height="400" fill="#0c0c0c"/>
 
-  <!-- Title bar -->
-  <rect x="80" y="120" width="864" height="56" rx="24" fill="#3E3E3E"/>
-  <rect x="80" y="152" width="864" height="24" fill="#3E3E3E"/>
+  <!--
+    Pixel grid: 16 wide x 10 tall
+    Each cell = 16px
+    Mascot total: 256 x 160
+    Centered: x_offset = (400-256)/2 = 72, y_offset = (400-160)/2 + 20 = 140
+    (shifted down slightly to leave room for ?!)
+  -->
+  <g transform="translate(200,200) scale(1.25) translate(-200,-154)">
+  <g id="mascot">
+    <!-- Row 0: ..PPPPPPPPPPPP.. -->
+    <rect x="104" y="140" width="16" height="16" fill="#d78787"/>
+    <rect x="120" y="140" width="16" height="16" fill="#d78787"/>
+    <rect x="136" y="140" width="16" height="16" fill="#d78787"/>
+    <rect x="152" y="140" width="16" height="16" fill="#d78787"/>
+    <rect x="168" y="140" width="16" height="16" fill="#d78787"/>
+    <rect x="184" y="140" width="16" height="16" fill="#d78787"/>
+    <rect x="200" y="140" width="16" height="16" fill="#d78787"/>
+    <rect x="216" y="140" width="16" height="16" fill="#d78787"/>
+    <rect x="232" y="140" width="16" height="16" fill="#d78787"/>
+    <rect x="248" y="140" width="16" height="16" fill="#d78787"/>
+    <rect x="264" y="140" width="16" height="16" fill="#d78787"/>
+    <rect x="280" y="140" width="16" height="16" fill="#d78787"/>
 
-  <!-- Window buttons -->
-  <circle cx="128" cy="148" r="14" fill="#FF5F56"/>
-  <circle cx="176" cy="148" r="14" fill="#FFBD2E"/>
-  <circle cx="224" cy="148" r="14" fill="#27C93F"/>
+    <!-- Row 1: ..PPPPPPPPPPPP.. -->
+    <rect x="104" y="156" width="16" height="16" fill="#d78787"/>
+    <rect x="120" y="156" width="16" height="16" fill="#d78787"/>
+    <rect x="136" y="156" width="16" height="16" fill="#d78787"/>
+    <rect x="152" y="156" width="16" height="16" fill="#d78787"/>
+    <rect x="168" y="156" width="16" height="16" fill="#d78787"/>
+    <rect x="184" y="156" width="16" height="16" fill="#d78787"/>
+    <rect x="200" y="156" width="16" height="16" fill="#d78787"/>
+    <rect x="216" y="156" width="16" height="16" fill="#d78787"/>
+    <rect x="232" y="156" width="16" height="16" fill="#d78787"/>
+    <rect x="248" y="156" width="16" height="16" fill="#d78787"/>
+    <rect x="264" y="156" width="16" height="16" fill="#d78787"/>
+    <rect x="280" y="156" width="16" height="16" fill="#d78787"/>
 
-  <!-- Split divider -->
-  <rect x="504" y="200" width="16" height="680" fill="#4E4E4E"/>
+    <!-- Row 2: ..PPBPPPPPPBPP.. (eyes) -->
+    <rect x="104" y="172" width="16" height="16" fill="#d78787"/>
+    <rect x="120" y="172" width="16" height="16" fill="#d78787"/>
+    <rect x="136" y="172" width="16" height="16" fill="#000000"/>
+    <rect x="152" y="172" width="16" height="16" fill="#d78787"/>
+    <rect x="168" y="172" width="16" height="16" fill="#d78787"/>
+    <rect x="184" y="172" width="16" height="16" fill="#d78787"/>
+    <rect x="200" y="172" width="16" height="16" fill="#d78787"/>
+    <rect x="216" y="172" width="16" height="16" fill="#d78787"/>
+    <rect x="232" y="172" width="16" height="16" fill="#d78787"/>
+    <rect x="248" y="172" width="16" height="16" fill="#000000"/>
+    <rect x="264" y="172" width="16" height="16" fill="#d78787"/>
+    <rect x="280" y="172" width="16" height="16" fill="#d78787"/>
 
-  <!-- Terminal side (left) - prompt lines -->
-  <text x="120" y="280" font-family="monospace" font-size="36" fill="#6A9955">$</text>
-  <text x="160" y="280" font-family="monospace" font-size="36" fill="#9CDCFE">git status</text>
+    <!-- Row 3: ..PPBPPPPPPBPP.. (eyes) -->
+    <rect x="104" y="188" width="16" height="16" fill="#d78787"/>
+    <rect x="120" y="188" width="16" height="16" fill="#d78787"/>
+    <rect x="136" y="188" width="16" height="16" fill="#000000"/>
+    <rect x="152" y="188" width="16" height="16" fill="#d78787"/>
+    <rect x="168" y="188" width="16" height="16" fill="#d78787"/>
+    <rect x="184" y="188" width="16" height="16" fill="#d78787"/>
+    <rect x="200" y="188" width="16" height="16" fill="#d78787"/>
+    <rect x="216" y="188" width="16" height="16" fill="#d78787"/>
+    <rect x="232" y="188" width="16" height="16" fill="#d78787"/>
+    <rect x="248" y="188" width="16" height="16" fill="#000000"/>
+    <rect x="264" y="188" width="16" height="16" fill="#d78787"/>
+    <rect x="280" y="188" width="16" height="16" fill="#d78787"/>
 
-  <text x="120" y="340" font-family="monospace" font-size="32" fill="#CE9178">modified: src/app.ts</text>
+    <!-- Row 4: PPPPPPPPPPPPPPPP (full body) -->
+    <rect x="72" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="88" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="104" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="120" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="136" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="152" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="168" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="184" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="200" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="216" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="232" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="248" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="264" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="280" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="296" y="204" width="16" height="16" fill="#d78787"/>
+    <rect x="312" y="204" width="16" height="16" fill="#d78787"/>
 
-  <text x="120" y="400" font-family="monospace" font-size="36" fill="#6A9955">$</text>
-  <text x="160" y="400" font-family="monospace" font-size="36" fill="#9CDCFE">claude</text>
+    <!-- Row 5: PPPPPPPPPPPPPPPP (full body) -->
+    <rect x="72" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="88" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="104" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="120" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="136" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="152" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="168" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="184" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="200" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="216" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="232" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="248" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="264" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="280" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="296" y="220" width="16" height="16" fill="#d78787"/>
+    <rect x="312" y="220" width="16" height="16" fill="#d78787"/>
 
-  <text x="120" y="460" font-family="monospace" font-size="32" fill="#DCDCAA">▋</text>
+    <!-- Row 6: ..PPPPPPPPPPPP.. -->
+    <rect x="104" y="236" width="16" height="16" fill="#d78787"/>
+    <rect x="120" y="236" width="16" height="16" fill="#d78787"/>
+    <rect x="136" y="236" width="16" height="16" fill="#d78787"/>
+    <rect x="152" y="236" width="16" height="16" fill="#d78787"/>
+    <rect x="168" y="236" width="16" height="16" fill="#d78787"/>
+    <rect x="184" y="236" width="16" height="16" fill="#d78787"/>
+    <rect x="200" y="236" width="16" height="16" fill="#d78787"/>
+    <rect x="216" y="236" width="16" height="16" fill="#d78787"/>
+    <rect x="232" y="236" width="16" height="16" fill="#d78787"/>
+    <rect x="248" y="236" width="16" height="16" fill="#d78787"/>
+    <rect x="264" y="236" width="16" height="16" fill="#d78787"/>
+    <rect x="280" y="236" width="16" height="16" fill="#d78787"/>
 
-  <!-- Diff side (right) - diff view -->
-  <rect x="560" y="240" width="340" height="36" fill="#3E2828"/>
-  <text x="580" y="268" font-family="monospace" font-size="28" fill="#F48771">- old code</text>
+    <!-- Row 7: ..PPPPPPPPPPPP.. -->
+    <rect x="104" y="252" width="16" height="16" fill="#d78787"/>
+    <rect x="120" y="252" width="16" height="16" fill="#d78787"/>
+    <rect x="136" y="252" width="16" height="16" fill="#d78787"/>
+    <rect x="152" y="252" width="16" height="16" fill="#d78787"/>
+    <rect x="168" y="252" width="16" height="16" fill="#d78787"/>
+    <rect x="184" y="252" width="16" height="16" fill="#d78787"/>
+    <rect x="200" y="252" width="16" height="16" fill="#d78787"/>
+    <rect x="216" y="252" width="16" height="16" fill="#d78787"/>
+    <rect x="232" y="252" width="16" height="16" fill="#d78787"/>
+    <rect x="248" y="252" width="16" height="16" fill="#d78787"/>
+    <rect x="264" y="252" width="16" height="16" fill="#d78787"/>
+    <rect x="280" y="252" width="16" height="16" fill="#d78787"/>
 
-  <rect x="560" y="290" width="340" height="36" fill="#283E28"/>
-  <text x="580" y="318" font-family="monospace" font-size="28" fill="#89D185">+ new code</text>
+    <!-- Row 8: ...P.P....P.P... (legs) -->
+    <rect x="120" y="268" width="16" height="16" fill="#d78787"/>
+    <rect x="152" y="268" width="16" height="16" fill="#d78787"/>
+    <rect x="232" y="268" width="16" height="16" fill="#d78787"/>
+    <rect x="264" y="268" width="16" height="16" fill="#d78787"/>
 
-  <rect x="560" y="340" width="340" height="36" fill="transparent"/>
-  <text x="580" y="368" font-family="monospace" font-size="28" fill="#808080">  context</text>
+    <!-- Row 9: ...P.P....P.P... (legs) -->
+    <rect x="120" y="284" width="16" height="16" fill="#d78787"/>
+    <rect x="152" y="284" width="16" height="16" fill="#d78787"/>
+    <rect x="232" y="284" width="16" height="16" fill="#d78787"/>
+    <rect x="264" y="284" width="16" height="16" fill="#d78787"/>
+  </g>
 
-  <rect x="560" y="390" width="340" height="36" fill="#283E28"/>
-  <text x="580" y="418" font-family="monospace" font-size="28" fill="#89D185">+ added</text>
+  <!-- Pixel art ?! using same 16px blocks as mascot -->
+  <g id="punctuation" fill="#d78787">
+    <!-- ? character (fat, 6 cols x 8 rows) -->
+    <!-- Row 0: .XXXX. -->
+    <rect x="128" y="8" width="16" height="16"/>
+    <rect x="144" y="8" width="16" height="16"/>
+    <rect x="160" y="8" width="16" height="16"/>
+    <rect x="176" y="8" width="16" height="16"/>
+    <!-- Row 1: XX..XX -->
+    <rect x="112" y="24" width="16" height="16"/>
+    <rect x="128" y="24" width="16" height="16"/>
+    <rect x="176" y="24" width="16" height="16"/>
+    <rect x="192" y="24" width="16" height="16"/>
+    <!-- Row 2: ....XX -->
+    <rect x="176" y="40" width="16" height="16"/>
+    <rect x="192" y="40" width="16" height="16"/>
+    <!-- Row 3: ..XXX. -->
+    <rect x="144" y="56" width="16" height="16"/>
+    <rect x="160" y="56" width="16" height="16"/>
+    <rect x="176" y="56" width="16" height="16"/>
+    <!-- Row 4: ..XX.. -->
+    <rect x="144" y="72" width="16" height="16"/>
+    <rect x="160" y="72" width="16" height="16"/>
+    <!-- Row 5: ..XX.. -->
+    <rect x="144" y="88" width="16" height="16"/>
+    <rect x="160" y="88" width="16" height="16"/>
+    <!-- Row 6: ...... (gap) -->
+    <!-- Row 7: ..XX.. (dot) -->
+    <rect x="144" y="120" width="16" height="16"/>
+    <rect x="160" y="120" width="16" height="16"/>
 
-  <!-- File list indicator -->
-  <rect x="560" y="500" width="340" height="32" fill="#3E3E3E" rx="4"/>
-  <text x="580" y="524" font-family="monospace" font-size="24" fill="#4EC9B0">M</text>
-  <text x="620" y="524" font-family="monospace" font-size="24" fill="#CCCCCC">app.ts</text>
-
-  <rect x="560" y="544" width="340" height="32" fill="transparent" rx="4"/>
-  <text x="580" y="568" font-family="monospace" font-size="24" fill="#6A9955">A</text>
-  <text x="620" y="568" font-family="monospace" font-size="24" fill="#808080">utils.ts</text>
+    <!-- ! character (2 cols x 8 rows), origin x=240, y=8 -->
+    <!-- Row 0-5: XX (stem) -->
+    <rect x="240" y="8" width="16" height="16"/>
+    <rect x="256" y="8" width="16" height="16"/>
+    <rect x="240" y="24" width="16" height="16"/>
+    <rect x="256" y="24" width="16" height="16"/>
+    <rect x="240" y="40" width="16" height="16"/>
+    <rect x="256" y="40" width="16" height="16"/>
+    <rect x="240" y="56" width="16" height="16"/>
+    <rect x="256" y="56" width="16" height="16"/>
+    <rect x="240" y="72" width="16" height="16"/>
+    <rect x="256" y="72" width="16" height="16"/>
+    <rect x="240" y="88" width="16" height="16"/>
+    <rect x="256" y="88" width="16" height="16"/>
+    <!-- Row 6: .. (gap) -->
+    <!-- Row 7: XX (dot) -->
+    <rect x="240" y="120" width="16" height="16"/>
+    <rect x="256" y="120" width="16" height="16"/>
+  </g>
+  </g>
 </svg>
