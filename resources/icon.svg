@@ -9,8 +9,8 @@
     </filter>
   </defs>
 
-  <!-- Dark background: macOS squircle shape (824/1024 of canvas, ~72px corner radius) -->
-  <rect x="39" y="39" width="322" height="322" rx="72" ry="72" fill="#0c0c0c"/>
+  <!-- Dark background: full-bleed square (macOS applies its own squircle mask) -->
+  <rect x="0" y="0" width="400" height="400" fill="#0c0c0c"/>
 
   <!--
     Pixel grid: 16 wide x 10 tall

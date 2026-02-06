@@ -19,7 +19,7 @@
       }
     ],
     "category": "public.app-category.developer-tools",
-    "icon": "resources/icon.icns",
+    "icon": "resources/icons/icon.icns",
     "identity": null,
     "hardenedRuntime": true,
     "entitlements": "resources/entitlements.mac.plist",
@@ -32,12 +32,12 @@
         "arch": ["x64"]
       }
     ],
-    "icon": "resources/icon.ico"
+    "icon": "resources/icons/icon.ico"
   },
   "linux": {
     "target": ["AppImage", "deb"],
     "category": "Development",
-    "icon": "resources"
+    "icon": "resources/icons"
   },
   "nsis": {
     "oneClick": false,

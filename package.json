@@ -19,7 +19,8 @@
     "test:e2e": "playwright test",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
-    "format": "prettier --write src"
+    "format": "prettier --write src",
+    "generate-icons": "electron-icon-builder --input=resources/icon.png --output=resources --flatten"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
@@ -50,6 +51,7 @@
     "autoprefixer": "^10.4.16",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.0",
+    "electron-icon-builder": "^2.0.1",
     "eslint": "^8.55.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.33.0",
