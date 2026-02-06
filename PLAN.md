@@ -9,7 +9,7 @@ Audit date: 2026-02-06
 - [x] Phase 3: Safe semver updates
 - [x] Phase 4: Vite 5→7 + Vitest 1→4 — **4 → 0 vulns**
 - [x] Bonus: Fixed xterm test aliases (26/26 suites, 433/433 tests passing)
-- [ ] Phase 5: ESLint 8→9
+- [x] Phase 5: ESLint 8→9
 - [ ] Phase 6: Monaco 0.45→0.55
 - [ ] Phase 7: Chokidar 3→5
 - [ ] Phase 8: xterm 5→6
@@ -24,6 +24,9 @@ Audit date: 2026-02-06
 - Removed broken xterm aliases from vitest.config.ts (were mapping to nonexistent legacy package names)
 - Removed monaco-editor alias; Vite 7 can't resolve monaco-editor entry point natively, so alias to mock file is still needed
 - `npm audit` reports **0 vulnerabilities**
+- ESLint 9 flat config: `.eslintrc.json` → `eslint.config.mjs`; `@typescript-eslint/*` → unified `typescript-eslint` package; `--ext` flag removed from lint scripts
+- eslint-plugin-react-hooks v7 adds many React Compiler rules in `recommended`; manually registered only `rules-of-hooks` + `exhaustive-deps` to maintain parity
+- ESLint 9 no longer flags `while (true)` with `no-constant-condition`, so stale disable directives can be removed
 
 ---
 

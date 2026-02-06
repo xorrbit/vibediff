@@ -68,7 +68,6 @@ export class GitService {
     const visited: string[] = []
     let current = normalizedDir
 
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       // Check if this intermediate dir is already cached
       const cachedIntermediate = this.gitRootCache.get(current)
