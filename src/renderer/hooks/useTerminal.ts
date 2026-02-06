@@ -3,6 +3,7 @@ import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import { WebLinksAddon } from 'xterm-addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
+import { subscribePtyData, subscribePtyExit } from '../lib/eventDispatchers'
 import 'xterm/css/xterm.css'
 
 interface UseTerminalOptions {
@@ -170,18 +171,14 @@ export function useTerminal({ sessionId, cwd, onExit }: UseTerminalOptions): Use
         window.electronAPI.pty.input(sessionId, data)
       })
 
-      // Handle PTY output
-      unsubscribeData = window.electronAPI.pty.onData((sid, data) => {
-        if (sid === sessionId && terminal) {
+      // Handle PTY output/exit through shared listeners (single global IPC subscription)
+      unsubscribeData = subscribePtyData(sessionId, (data) => {
+        if (terminal) {
           terminal.write(data)
         }
       })
-
-      // Handle PTY exit
-      unsubscribeExit = window.electronAPI.pty.onExit((sid, _code) => {
-        if (sid === sessionId) {
-          onExit?.()
-        }
+      unsubscribeExit = subscribePtyExit(sessionId, () => {
+        onExit?.()
       })
 
       // Get initial dimensions

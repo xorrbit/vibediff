@@ -13,6 +13,15 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | null>(null)
 
+function mapsEqual<K, V>(a: Map<K, V>, b: Map<K, V>): boolean {
+  if (a === b) return true
+  if (a.size !== b.size) return false
+  for (const [key, value] of a) {
+    if (!b.has(key) || b.get(key) !== value) return false
+  }
+  return true
+}
+
 function generateId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
@@ -154,15 +163,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }))
 
         // Update CWDs and git roots
-        setSessionCwds(cwdUpdates)
-        setSessionGitRoots(gitRootUpdates)
+        setSessionCwds((prev) => (mapsEqual(prev, cwdUpdates) ? prev : cwdUpdates))
+        setSessionGitRoots((prev) => (mapsEqual(prev, gitRootUpdates) ? prev : gitRootUpdates))
 
         // Update names if changed
         if (nameUpdates.length > 0) {
+          const nameById = new Map(nameUpdates.map((update) => [update.id, update.name]))
           setSessions((prev) =>
             prev.map((s) => {
-              const update = nameUpdates.find((u) => u.id === s.id)
-              return update ? { ...s, name: update.name } : s
+              const nextName = nameById.get(s.id)
+              return nextName ? { ...s, name: nextName } : s
             })
           )
         }

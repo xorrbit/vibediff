@@ -151,7 +151,7 @@ describe('useResizable', () => {
     document.body.removeChild(container)
   })
 
-  it('handles edge case: drag outside bounds', () => {
+  it('handles edge case: drag outside bounds', async () => {
     const container = document.createElement('div')
     Object.defineProperty(container, 'getBoundingClientRect', {
       value: () => ({ left: 100, width: 500 }),
@@ -181,6 +181,13 @@ describe('useResizable', () => {
     // Move mouse beyond right edge
     act(() => {
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 700 }))
+    })
+
+    // Second move may be frame-coalesced by rAF throttling
+    await act(async () => {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve())
+      })
     })
 
     expect(result.current.ratio).toBe(0.8) // Should clamp to maximum

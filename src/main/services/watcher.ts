@@ -32,11 +32,11 @@ export class FileWatcher {
   /**
    * Start watching a directory for changes.
    */
-  watch(sessionId: string, dir: string, callback: WatcherCallback): void {
+  watch(sessionId: string, dir: string, callback: WatcherCallback): boolean {
     // Skip if existing watcher already covers the same directory
     const existing = this.watchers.get(sessionId)
     if (existing && existing.watchedDir === dir) {
-      return
+      return true
     }
 
     // Stop any existing watcher for this session
@@ -45,7 +45,7 @@ export class FileWatcher {
     // WSL2: chokidar polling still stat()s every file in the tree every interval,
     // which overwhelms the 9P filesystem bridge and starves the event loop.
     // Skip file watching entirely — useGitDiff falls back to periodic git status.
-    if (IS_WSL) return
+    if (IS_WSL) return false
 
     const watcher = chokidar.watch(dir, {
       ignored: [
@@ -125,6 +125,7 @@ export class FileWatcher {
       })
 
     this.watchers.set(sessionId, instance)
+    return true
   }
 
   /**

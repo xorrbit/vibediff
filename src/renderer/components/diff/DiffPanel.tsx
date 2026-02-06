@@ -7,10 +7,16 @@ import { DiffView, type DiffViewMode } from './DiffView'
 interface DiffPanelProps {
   sessionId: string
   cwd: string
+  isActive?: boolean
   onFocusTerminal?: () => void
 }
 
-export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, onFocusTerminal }: DiffPanelProps) {
+export const DiffPanel = memo(function DiffPanel({
+  sessionId,
+  cwd: initialCwd,
+  isActive = true,
+  onFocusTerminal,
+}: DiffPanelProps) {
   // Get current CWD from context (tracked centrally to avoid duplicate polling)
   const { sessionCwds } = useSessionContext()
   const terminalCwd = sessionCwds.get(sessionId) || initialCwd
@@ -24,7 +30,9 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
     error,
     selectFile,
     refresh,
-  } = useGitDiff({ sessionId, cwd: terminalCwd })
+  } = useGitDiff(isActive
+    ? { sessionId, cwd: terminalCwd }
+    : { sessionId, cwd: terminalCwd, enabled: false })
 
   // Resizable floating panel — drag left edge to widen
   const COLLAPSED_WIDTH = 80
@@ -32,11 +40,15 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const widthRafRef = useRef<number | null>(null)
+  const pendingWidthRef = useRef<number | null>(null)
 
   // Vertical resize — drag bottom edge to change max height
   const [fileListHeight, setFileListHeight] = useState<number | null>(null)
   const [isResizingHeight, setIsResizingHeight] = useState(false)
   const fileListPanelRef = useRef<HTMLDivElement>(null)
+  const heightRafRef = useRef<number | null>(null)
+  const pendingHeightRef = useRef<number | null>(null)
 
   // Diff view mode toggle
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>('auto')
@@ -73,10 +85,25 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
       // Panel's right edge is pinned to the DiffPanel's left edge
       const anchorX = containerRef.current.getBoundingClientRect().left
       const newWidth = anchorX - e.clientX
-      setFileListWidth(Math.min(500, Math.max(180, newWidth)))
+      pendingWidthRef.current = Math.min(500, Math.max(180, newWidth))
+      if (widthRafRef.current !== null) return
+
+      widthRafRef.current = requestAnimationFrame(() => {
+        widthRafRef.current = null
+        if (pendingWidthRef.current === null) return
+        setFileListWidth(pendingWidthRef.current)
+      })
     }
 
     const handleMouseUp = () => {
+      if (widthRafRef.current !== null) {
+        cancelAnimationFrame(widthRafRef.current)
+        widthRafRef.current = null
+      }
+      if (pendingWidthRef.current !== null) {
+        setFileListWidth(pendingWidthRef.current)
+        pendingWidthRef.current = null
+      }
       setIsResizing(false)
       document.body.classList.remove('resizing')
     }
@@ -87,6 +114,11 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
+      if (widthRafRef.current !== null) {
+        cancelAnimationFrame(widthRafRef.current)
+        widthRafRef.current = null
+      }
+      pendingWidthRef.current = null
       document.body.classList.remove('resizing')
     }
   }, [isResizing])
@@ -100,10 +132,25 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
       const containerHeight = containerRef.current.getBoundingClientRect().height
       const maxAllowed = containerHeight * 0.9
       const newHeight = e.clientY - panelTop
-      setFileListHeight(Math.min(maxAllowed, Math.max(100, newHeight)))
+      pendingHeightRef.current = Math.min(maxAllowed, Math.max(100, newHeight))
+      if (heightRafRef.current !== null) return
+
+      heightRafRef.current = requestAnimationFrame(() => {
+        heightRafRef.current = null
+        if (pendingHeightRef.current === null) return
+        setFileListHeight(pendingHeightRef.current)
+      })
     }
 
     const handleMouseUp = () => {
+      if (heightRafRef.current !== null) {
+        cancelAnimationFrame(heightRafRef.current)
+        heightRafRef.current = null
+      }
+      if (pendingHeightRef.current !== null) {
+        setFileListHeight(pendingHeightRef.current)
+        pendingHeightRef.current = null
+      }
       setIsResizingHeight(false)
       document.body.classList.remove('resizing')
     }
@@ -114,6 +161,11 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
+      if (heightRafRef.current !== null) {
+        cancelAnimationFrame(heightRafRef.current)
+        heightRafRef.current = null
+      }
+      pendingHeightRef.current = null
       document.body.classList.remove('resizing')
     }
   }, [isResizingHeight])

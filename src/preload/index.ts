@@ -67,7 +67,7 @@ const electronAPI: ElectronAPI = {
   },
 
   fs: {
-    watchStart: (sessionId: string, dir: string): Promise<void> =>
+    watchStart: (sessionId: string, dir: string): Promise<boolean> =>
       ipcRenderer.invoke(FS_CHANNELS.WATCH_START, sessionId, dir),
 
     watchStop: (sessionId: string): Promise<void> =>

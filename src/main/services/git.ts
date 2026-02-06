@@ -20,6 +20,11 @@ export class GitService {
   private gitRootCache = new Map<string, { gitRoot: string | null; timestamp: number }>()
   private static GIT_ROOT_CACHE_TTL = 10 * 60 * 1000 // 10 minutes
 
+  // Cache branch diff-summary files by commit state (base tip + HEAD).
+  // This avoids re-running expensive `git diffSummary(base...HEAD)` on every poll.
+  private branchDiffCache = new Map<string, ChangedFile[]>()
+  private static BRANCH_DIFF_CACHE_MAX = 100
+
   /**
    * Find the git root for a directory by walking up parent dirs.
    * Caches every visited directory along the way (hierarchical backfill).
@@ -180,8 +185,9 @@ export class GitService {
    * Get list of changed files compared to base branch.
    */
   async getChangedFiles(dir: string, baseBranch?: string): Promise<ChangedFile[]> {
-    const git = this.getGit(dir)
-    if (!git) return []
+    const result = this.getGitWithRoot(dir)
+    if (!result) return []
+    const { git, gitRoot } = result
 
     try {
       // Run status and main branch detection in parallel
@@ -237,19 +243,10 @@ export class GitService {
       // (not changes made to base after branch was created)
       if (base) {
         try {
-          const diffSummary = await git.diffSummary([`${base}...HEAD`])
-          for (const file of diffSummary.files) {
-            if (!addedPaths.has(file.file)) {
-              let status: FileStatus = 'M'
-              // Check if file has insertions/deletions (text file)
-              if ('insertions' in file && 'deletions' in file) {
-                if (file.insertions > 0 && file.deletions === 0) {
-                  status = 'A'
-                } else if (file.deletions > 0 && file.insertions === 0) {
-                  status = 'D'
-                }
-              }
-              files.push({ path: file.file, status })
+          const branchDiffFiles = await this.getBranchDiffFiles(git, gitRoot, base)
+          for (const file of branchDiffFiles) {
+            if (!addedPaths.has(file.path)) {
+              files.push(file)
             }
           }
         } catch {
@@ -269,6 +266,87 @@ export class GitService {
     if (status.deleted.includes(file)) return 'D'
     if (status.renamed.some((r) => r.to === file)) return 'R'
     return 'M'
+  }
+
+  private getStatusFromDiffSummary(file: unknown): FileStatus {
+    const insertions = (
+      typeof file === 'object' &&
+      file !== null &&
+      'insertions' in file &&
+      typeof (file as { insertions?: unknown }).insertions === 'number'
+    ) ? (file as { insertions: number }).insertions : 0
+
+    const deletions = (
+      typeof file === 'object' &&
+      file !== null &&
+      'deletions' in file &&
+      typeof (file as { deletions?: unknown }).deletions === 'number'
+    ) ? (file as { deletions: number }).deletions : 0
+
+    if (insertions > 0 && deletions === 0) return 'A'
+    if (deletions > 0 && insertions === 0) return 'D'
+    return 'M'
+  }
+
+  private setBranchDiffCacheEntry(key: string, files: ChangedFile[]): void {
+    // Move key to the end for basic LRU behavior
+    this.branchDiffCache.delete(key)
+    this.branchDiffCache.set(key, files)
+
+    while (this.branchDiffCache.size > GitService.BRANCH_DIFF_CACHE_MAX) {
+      const oldest = this.branchDiffCache.keys().next().value
+      if (oldest !== undefined) {
+        this.branchDiffCache.delete(oldest)
+      }
+    }
+  }
+
+  private async getBranchDiffCacheKey(
+    git: SimpleGit,
+    gitRoot: string,
+    base: string
+  ): Promise<string | null> {
+    try {
+      // Key cache by resolved commit refs, not branch names, so cache invalidates
+      // automatically when base or HEAD changes.
+      const [headRefRaw, baseRefRaw] = await Promise.all([
+        git.raw(['rev-parse', 'HEAD']),
+        git.raw(['rev-parse', base]),
+      ])
+
+      if (typeof headRefRaw !== 'string' || typeof baseRefRaw !== 'string') return null
+      const headRef = headRefRaw.trim()
+      const baseRef = baseRefRaw.trim()
+      if (!headRef || !baseRef) return null
+
+      return `${gitRoot}|${base}|${baseRef}|${headRef}`
+    } catch {
+      return null
+    }
+  }
+
+  private async getBranchDiffFiles(
+    git: SimpleGit,
+    gitRoot: string,
+    base: string
+  ): Promise<ChangedFile[]> {
+    const cacheKey = await this.getBranchDiffCacheKey(git, gitRoot, base)
+    if (cacheKey) {
+      const cached = this.branchDiffCache.get(cacheKey)
+      if (cached) return cached
+    }
+
+    const diffSummary = await git.diffSummary([`${base}...HEAD`])
+    const files = diffSummary.files.map((file) => ({
+      path: file.file,
+      status: this.getStatusFromDiffSummary(file),
+    }))
+
+    if (cacheKey) {
+      this.setBranchDiffCacheEntry(cacheKey, files)
+    }
+
+    return files
   }
 
   /**

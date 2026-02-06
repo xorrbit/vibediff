@@ -36,6 +36,7 @@ describe('useGitDiff', () => {
     mockGit.getChangedFiles.mockResolvedValue([])
     mockGit.getFileDiff.mockResolvedValue(null)
     mockGit.findGitRoot.mockResolvedValue('/test/dir')
+    mockFs.watchStart.mockResolvedValue(true)
   })
 
   afterEach(() => {
@@ -341,6 +342,40 @@ describe('useGitDiff', () => {
       expect(result.current.isLoading).toBe(true)
       expect(mockGit.getChangedFiles.mock.calls.length).toBe(callsBefore + 1)
     })
+
+    it('does not refetch diff when selected file is no longer in changed files', async () => {
+      mockGit.getChangedFiles.mockResolvedValueOnce([{ path: 'file.ts', status: 'M' }])
+      mockGit.getChangedFiles.mockResolvedValueOnce([])
+      mockGit.getFileDiff.mockResolvedValue({ original: 'old', modified: 'new' })
+
+      const { result } = renderHook(() =>
+        useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
+      )
+
+      // Initial file load
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+
+      // Initial selected-file diff load
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100)
+      })
+
+      const diffCallsAfterInitialLoad = mockGit.getFileDiff.mock.calls.length
+
+      act(() => {
+        result.current.refresh()
+      })
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      expect(result.current.selectedFile).toBeNull()
+      expect(result.current.diffContent).toBeNull()
+      expect(mockGit.getFileDiff.mock.calls.length).toBe(diffCallsAfterInitialLoad)
+    })
   })
 
   describe('error handling', () => {
@@ -396,7 +431,51 @@ describe('useGitDiff', () => {
       expect(mockFs.watchStart).toHaveBeenCalledWith('test-session', '/git/root')
     })
 
-    it('starts file watcher with cwd when not in git repo', async () => {
+    it('does not start fallback polling when native watcher is active', async () => {
+      mockFs.watchStart.mockResolvedValue(true)
+      mockGit.getChangedFiles.mockResolvedValue([])
+
+      renderHook(() =>
+        useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
+      )
+
+      // Initial delayed load
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      const callsAfterInit = mockGit.getChangedFiles.mock.calls.length
+
+      // No 5s fallback polling when native watcher is active
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000)
+      })
+
+      expect(mockGit.getChangedFiles.mock.calls.length).toBe(callsAfterInit)
+    })
+
+    it('starts fallback polling when native watcher is unavailable', async () => {
+      mockFs.watchStart.mockResolvedValue(false)
+      mockGit.getChangedFiles.mockResolvedValue([])
+
+      renderHook(() =>
+        useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
+      )
+
+      // Initial delayed load
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      const callsAfterInit = mockGit.getChangedFiles.mock.calls.length
+
+      // Fallback poll should trigger after 5s
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000)
+      })
+
+      expect(mockGit.getChangedFiles.mock.calls.length).toBe(callsAfterInit + 1)
+    })
+
+    it('does not start file watcher when not in git repo', async () => {
       mockGit.findGitRoot.mockResolvedValue(null)
 
       renderHook(() =>
@@ -408,13 +487,20 @@ describe('useGitDiff', () => {
         await vi.advanceTimersByTimeAsync(0)
       })
 
-      expect(mockFs.watchStart).toHaveBeenCalledWith('test-session', '/not-a-repo')
+      expect(mockFs.watchStart).not.toHaveBeenCalled()
+      expect(mockFs.onFileChanged).not.toHaveBeenCalled()
     })
 
-    it('stops file watcher on unmount', () => {
+    it('stops file watcher on unmount', async () => {
+      mockGit.findGitRoot.mockResolvedValue('/git/root')
+
       const { unmount } = renderHook(() =>
         useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
       )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
 
       unmount()
 

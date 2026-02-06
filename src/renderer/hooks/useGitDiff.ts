@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ChangedFile, DiffContent } from '@shared/types'
+import { subscribeFileChanged } from '../lib/eventDispatchers'
 
 interface UseGitDiffOptions {
   sessionId: string
   cwd: string
+  enabled?: boolean
 }
 
 interface UseGitDiffReturn {
@@ -19,7 +21,7 @@ interface UseGitDiffReturn {
 
 const MAX_CACHE_SIZE = 20
 
-export function useGitDiff({ sessionId, cwd }: UseGitDiffOptions): UseGitDiffReturn {
+export function useGitDiff({ sessionId, cwd, enabled = true }: UseGitDiffOptions): UseGitDiffReturn {
   const [files, setFiles] = useState<ChangedFile[]>([])
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [diffContent, setDiffContent] = useState<DiffContent | null>(null)
@@ -30,6 +32,7 @@ export function useGitDiff({ sessionId, cwd }: UseGitDiffOptions): UseGitDiffRet
   const selectedFileRef = useRef<string | null>(null)
   const prevGitRootRef = useRef<string | null>(null)
   const initialLoadDone = useRef(false)
+  const wasEnabledRef = useRef(enabled)
   const loadRequestId = useRef(0)
   const loadFilesRef = useRef<() => Promise<void>>()
   // LRU cache: Map maintains insertion order, so we delete+re-add on access
@@ -69,6 +72,8 @@ export function useGitDiff({ sessionId, cwd }: UseGitDiffOptions): UseGitDiffRet
 
   // Resolve git root whenever cwd changes
   useEffect(() => {
+    if (!enabled) return
+
     let cancelled = false
     window.electronAPI.git.findGitRoot(cwd).then((root) => {
       if (!cancelled) {
@@ -76,10 +81,12 @@ export function useGitDiff({ sessionId, cwd }: UseGitDiffOptions): UseGitDiffRet
       }
     })
     return () => { cancelled = true }
-  }, [cwd])
+  }, [cwd, enabled])
 
   // Load changed files and refresh diff if a file is selected
   const loadFiles = useCallback(async () => {
+    if (!enabled) return
+
     if (!gitRoot) {
       setFiles([])
       setError(null)
@@ -102,14 +109,30 @@ export function useGitDiff({ sessionId, cwd }: UseGitDiffOptions): UseGitDiffRet
       if (!selectedFileRef.current && changedFiles.length > 0) {
         setSelectedFile(changedFiles[0].path)
       } else if (selectedFileRef.current) {
+        const selectedPath = selectedFileRef.current
+        const selectedStillChanged = changedFiles.some((file) => file.path === selectedPath)
+
+        if (!selectedStillChanged) {
+          // Selected file is no longer changed; switch to first changed file (if any)
+          // and avoid re-fetching a stale diff.
+          const nextSelected = changedFiles[0]?.path ?? null
+          selectedFileRef.current = nextSelected
+          setSelectedFile(nextSelected)
+          if (!nextSelected) {
+            setDiffContent(null)
+          }
+          diffCache.current.delete(selectedPath)
+          return
+        }
+
         // Refresh diff content for currently selected file
         try {
-          const diff = await window.electronAPI.git.getFileDiff(gitRoot, selectedFileRef.current)
+          const diff = await window.electronAPI.git.getFileDiff(gitRoot, selectedPath)
 
           if (requestId !== loadRequestId.current) return
 
           // Read directly without updating LRU (this is a background refresh)
-          const cached = diffCache.current.get(selectedFileRef.current)
+          const cached = diffCache.current.get(selectedPath)
 
           // Only update if diff actually changed
           const hasChanged = !cached ||
@@ -119,9 +142,9 @@ export function useGitDiff({ sessionId, cwd }: UseGitDiffOptions): UseGitDiffRet
           if (hasChanged) {
             setDiffContent(diff)
             if (diff) {
-              setCacheEntry(selectedFileRef.current, diff)
+              setCacheEntry(selectedPath, diff)
             } else {
-              diffCache.current.delete(selectedFileRef.current)
+              diffCache.current.delete(selectedPath)
             }
           }
         } catch {
@@ -137,23 +160,37 @@ export function useGitDiff({ sessionId, cwd }: UseGitDiffOptions): UseGitDiffRet
         setIsLoading(false)
       }
     }
-  }, [gitRoot, setCacheEntry])
+  }, [enabled, gitRoot, setCacheEntry])
 
   // Keep ref in sync so mount timeout always calls latest version
   loadFilesRef.current = loadFiles
 
   // Delay initial load to not block terminal initialization
   useEffect(() => {
+    if (!enabled || initialLoadDone.current) return
+
     const timer = setTimeout(() => {
       loadFilesRef.current?.()
       initialLoadDone.current = true
     }, 2000) // Wait 2 seconds after mount before first git check
 
     return () => clearTimeout(timer)
-  }, []) // Only run on mount
+  }, [enabled])
+
+  // When reactivating an already-initialized tab, refresh immediately.
+  useEffect(() => {
+    const wasEnabled = wasEnabledRef.current
+    wasEnabledRef.current = enabled
+
+    if (enabled && !wasEnabled && initialLoadDone.current) {
+      loadFiles()
+    }
+  }, [enabled, loadFiles])
 
   // React to git root changes (after initial load)
   useEffect(() => {
+    if (!enabled) return
+
     if (!initialLoadDone.current) return
 
     if (prevGitRootRef.current !== gitRoot) {
@@ -172,10 +209,15 @@ export function useGitDiff({ sessionId, cwd }: UseGitDiffOptions): UseGitDiffRet
       // Always refresh files (same root = background refresh, different root = full reload)
       loadFiles()
     }
-  }, [gitRoot, loadFiles])
+  }, [enabled, gitRoot, loadFiles])
 
   // Load diff when selected file changes (with small delay)
   useEffect(() => {
+    if (!enabled) {
+      setIsDiffLoading(false)
+      return
+    }
+
     if (!selectedFile) {
       setDiffContent(null)
       setIsDiffLoading(false)
@@ -226,15 +268,17 @@ export function useGitDiff({ sessionId, cwd }: UseGitDiffOptions): UseGitDiffRet
       clearTimeout(timer)
       setIsDiffLoading(false)
     }
-  }, [gitRoot, cwd, selectedFile, getCacheEntry, setCacheEntry])
+  }, [enabled, gitRoot, cwd, selectedFile, getCacheEntry, setCacheEntry])
 
   // Watch for file changes and refresh git status reactively
   // Depends on gitRoot so cd'ing within a repo does NOT restart the watcher
   useEffect(() => {
-    const watchDir = gitRoot || cwd
+    if (!enabled || !gitRoot) return
+
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
     let isRefreshing = false
     let fallbackInterval: ReturnType<typeof setInterval> | null = null
+    let cancelled = false
 
     const debouncedRefresh = () => {
       // Don't refresh if hidden or already refreshing
@@ -254,21 +298,29 @@ export function useGitDiff({ sessionId, cwd }: UseGitDiffOptions): UseGitDiffRet
       }, 500)
     }
 
-    // Start file watcher
-    window.electronAPI.fs.watchStart(sessionId, watchDir)
-    const unsubscribe = window.electronAPI.fs.onFileChanged((event) => {
-      if (event.sessionId === sessionId) {
-        debouncedRefresh()
+    const startWatching = async () => {
+      let hasNativeWatcher = false
+      try {
+        hasNativeWatcher = await window.electronAPI.fs.watchStart(sessionId, gitRoot)
+      } catch {
+        hasNativeWatcher = false
       }
-    })
 
-    // Fallback poll every 5s in case watcher misses something
-    // (on WSL2 the file watcher is disabled, so this is the primary refresh)
-    fallbackInterval = setInterval(() => {
-      if (!document.hidden && !isRefreshing) {
-        loadFiles()
-      }
-    }, 5000)
+      if (cancelled || hasNativeWatcher) return
+
+      // Fallback poll every 5s only when native watcher is unavailable
+      // (on WSL2 this becomes the primary refresh mechanism)
+      fallbackInterval = setInterval(() => {
+        if (!document.hidden && !isRefreshing) {
+          loadFiles()
+        }
+      }, 5000)
+    }
+
+    const unsubscribe = subscribeFileChanged(sessionId, () => {
+      debouncedRefresh()
+    })
+    void startWatching()
 
     // Refresh when tab becomes visible
     const handleVisibilityChange = () => {
@@ -279,13 +331,14 @@ export function useGitDiff({ sessionId, cwd }: UseGitDiffOptions): UseGitDiffRet
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
+      cancelled = true
       if (debounceTimer) clearTimeout(debounceTimer)
       if (fallbackInterval) clearInterval(fallbackInterval)
       unsubscribe()
       window.electronAPI.fs.watchStop(sessionId)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [sessionId, gitRoot, cwd, loadFiles])
+  }, [enabled, sessionId, gitRoot, loadFiles])
 
   const selectFile = useCallback((path: string) => {
     // Check cache first for instant switching (also marks as recently used)
