@@ -273,14 +273,14 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
             <button
               className="text-obsidian-text-muted hover:text-obsidian-accent p-1 rounded transition-all duration-200 hover:bg-obsidian-float/50 flex-shrink-0"
               onClick={() => navigator.clipboard.writeText(selectedFile)}
-              title="Copy full path"
+              title="Copy relative path"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h6m4-14h2a2 2 0 012 2v10a2 2 0 01-2 2h-6a2 2 0 01-2-2V7a2 2 0 012-2h2" />
                 <rect x="7" y="3" width="6" height="4" rx="1" />
               </svg>
             </button>
-            <span className="text-xs font-mono text-obsidian-text-secondary truncate flex-1 min-w-0">
+            <span className="text-xs font-mono text-obsidian-text-secondary truncate min-w-0">
               {selectedFile}
             </span>
             {/* Copy filename only */}
@@ -293,8 +293,9 @@ export const DiffPanel = memo(function DiffPanel({ sessionId, cwd: initialCwd, o
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M16 3h2a2 2 0 012 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V5" />
               </svg>
             </button>
+            <div className="flex-1" />
             <button
-              className="text-obsidian-text-muted hover:text-obsidian-accent p-1 rounded transition-all duration-200 hover:bg-obsidian-float/50 flex-shrink-0 ml-2"
+              className="text-obsidian-text-muted hover:text-obsidian-accent p-1 rounded transition-all duration-200 hover:bg-obsidian-float/50 flex-shrink-0"
               onClick={cycleDiffViewMode}
               title={`View: ${diffViewMode === 'auto' ? 'Automatic' : diffViewMode === 'unified' ? 'Unified' : 'Split'}`}
             >

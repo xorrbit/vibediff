@@ -7,6 +7,35 @@ import * as monaco from 'monaco-editor'
 // Configure Monaco to use local files instead of CDN
 loader.config({ monaco })
 
+// Custom obsidian theme — better contrast for diff highlighting
+monaco.editor.defineTheme('obsidian-diff', {
+  base: 'vs-dark',
+  inherit: true,
+  rules: [],
+  colors: {
+    'editor.background': '#111113',
+    'editor.lineHighlightBackground': '#00000000',
+    'editorLineNumber.foreground': '#52525b',
+    'editorLineNumber.activeForeground': '#a1a1aa',
+    'editorGutter.background': '#0a0a0b',
+    // Inserted (added) lines — richer green tint with brighter gutter
+    'diffEditor.insertedTextBackground': '#34d39918',
+    'diffEditor.insertedLineBackground': '#34d39915',
+    'diffEditorGutter.insertedLineBackground': '#34d39930',
+    // Removed (deleted) lines — deeper red tint
+    'diffEditor.removedTextBackground': '#f8717118',
+    'diffEditor.removedLineBackground': '#f8717112',
+    'diffEditorGutter.removedLineBackground': '#f8717130',
+    // Diff overview ruler
+    'diffEditorOverview.insertedForeground': '#34d39960',
+    'diffEditorOverview.removedForeground': '#f8717160',
+    // Scrollbar
+    'scrollbarSlider.background': '#27272c80',
+    'scrollbarSlider.hoverBackground': '#3d3d45',
+    'scrollbarSlider.activeBackground': '#52525b',
+  },
+})
+
 // Lazy load Monaco to avoid blocking initial render
 const DiffEditor = lazy(() =>
   import('@monaco-editor/react').then((mod) => ({ default: mod.DiffEditor }))
@@ -128,7 +157,7 @@ const DiffEditorContent = memo(function DiffEditorContent({
       original={original}
       modified={modified}
       language={language}
-      theme="vs-dark"
+      theme="obsidian-diff"
       options={options}
     />
   )
