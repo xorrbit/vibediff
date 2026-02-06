@@ -2,11 +2,13 @@ import { IpcMain } from 'electron'
 import { PTY_CHANNELS, PtySpawnOptions, PtyResizeOptions } from '@shared/types'
 import { PtyManager } from '../services/pty-manager'
 import { sendToRenderer } from '../index'
+import { validateIpcSender } from '../security/validate-sender'
 
 export const ptyManager = new PtyManager()
 
 export function registerPtyHandlers(ipcMain: IpcMain) {
-  ipcMain.handle(PTY_CHANNELS.SPAWN, async (_event, options: PtySpawnOptions) => {
+  ipcMain.handle(PTY_CHANNELS.SPAWN, async (event, options: PtySpawnOptions) => {
+    if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')
     const { sessionId, cwd, shell } = options
 
     try {
@@ -27,19 +29,23 @@ export function registerPtyHandlers(ipcMain: IpcMain) {
     }
   })
 
-  ipcMain.on(PTY_CHANNELS.INPUT, (_event, sessionId: string, data: string) => {
+  ipcMain.on(PTY_CHANNELS.INPUT, (event, sessionId: string, data: string) => {
+    if (!validateIpcSender(event)) return
     ptyManager.write(sessionId, data)
   })
 
-  ipcMain.on(PTY_CHANNELS.RESIZE, (_event, options: PtyResizeOptions) => {
+  ipcMain.on(PTY_CHANNELS.RESIZE, (event, options: PtyResizeOptions) => {
+    if (!validateIpcSender(event)) return
     ptyManager.resize(options.sessionId, options.cols, options.rows)
   })
 
-  ipcMain.on(PTY_CHANNELS.KILL, (_event, sessionId: string) => {
+  ipcMain.on(PTY_CHANNELS.KILL, (event, sessionId: string) => {
+    if (!validateIpcSender(event)) return
     ptyManager.kill(sessionId)
   })
 
-  ipcMain.handle('pty:getCwd', (_event, sessionId: string) => {
+  ipcMain.handle('pty:getCwd', (event, sessionId: string) => {
+    if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')
     return ptyManager.getCwd(sessionId)
   })
 }

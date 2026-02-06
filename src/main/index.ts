@@ -31,6 +31,7 @@ import { registerFsHandlers, fileWatcher } from './ipc/fs'
 import { registerGrammarHandlers } from './ipc/grammar'
 import { TERMINAL_MENU_CHANNELS } from '@shared/types'
 import { createAppMenu } from './menu'
+import { validateIpcSender } from './security/validate-sender'
 
 function isWSL(): boolean {
   if (platform() !== 'linux') return false
@@ -110,7 +111,8 @@ function registerIpcHandlers() {
   console.log('IPC handlers registered')
 
   // Directory selection dialog
-  ipcMain.handle('fs:selectDirectory', async () => {
+  ipcMain.handle('fs:selectDirectory', async (event) => {
+    if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')
     if (!mainWindow) return null
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
@@ -122,11 +124,13 @@ function registerIpcHandlers() {
   })
 
   // Window controls
-  ipcMain.on('window:minimize', () => {
+  ipcMain.on('window:minimize', (event) => {
+    if (!validateIpcSender(event)) return
     mainWindow?.minimize()
   })
 
-  ipcMain.on('window:maximize', () => {
+  ipcMain.on('window:maximize', (event) => {
+    if (!validateIpcSender(event)) return
     if (mainWindow?.isMaximized()) {
       mainWindow.unmaximize()
     } else {
@@ -134,27 +138,32 @@ function registerIpcHandlers() {
     }
   })
 
-  ipcMain.on('window:close', () => {
+  ipcMain.on('window:close', (event) => {
+    if (!validateIpcSender(event)) return
     mainWindow?.close()
   })
 
-  ipcMain.handle('window:getPosition', () => {
+  ipcMain.handle('window:getPosition', (event) => {
+    if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')
     if (!mainWindow) return { x: 0, y: 0 }
     const [x, y] = mainWindow.getPosition()
     return { x, y }
   })
 
-  ipcMain.on('window:setPosition', (_event, x: number, y: number) => {
+  ipcMain.on('window:setPosition', (event, x: number, y: number) => {
+    if (!validateIpcSender(event)) return
     if (!mainWindow) return
     mainWindow.setPosition(Math.round(x), Math.round(y))
   })
 
-  ipcMain.on('app:quit', () => {
+  ipcMain.on('app:quit', (event) => {
+    if (!validateIpcSender(event)) return
     app.quit()
   })
 
   // Terminal context menu
   ipcMain.on(TERMINAL_MENU_CHANNELS.SHOW, (event, hasSelection: boolean) => {
+    if (!validateIpcSender(event)) return
     const menu = Menu.buildFromTemplate([
       {
         label: 'Copy',
@@ -179,7 +188,8 @@ function registerIpcHandlers() {
   })
 
   // Open URLs in system browser (WSL2-aware)
-  ipcMain.handle('shell:openExternal', async (_event, url: string) => {
+  ipcMain.handle('shell:openExternal', async (event, url: string) => {
+    if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')
     if (!/^https?:\/\//i.test(url)) return
 
     if (isWSL()) {

@@ -63,7 +63,7 @@ IPC handlers trust any renderer frame that can call the channel. This is normall
 
 **Fix:** Add a central sender validation guard (`event.senderFrame.url`) and reject IPC calls from non-app origins.
 
-**Status:** Open — needs testing
+**Status:** Fixed — all 22 IPC handlers validate sender origin via `validateIpcSender()`
 
 ---
 
