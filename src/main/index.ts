@@ -32,6 +32,7 @@ import { registerGrammarHandlers } from './ipc/grammar'
 import { TERMINAL_MENU_CHANNELS } from '@shared/types'
 import { createAppMenu } from './menu'
 import { validateIpcSender } from './security/validate-sender'
+import { assertFiniteNumber, assertBoolean, assertNonEmptyString } from './security/validate-ipc-params'
 
 function isWSL(): boolean {
   if (platform() !== 'linux') return false
@@ -152,6 +153,12 @@ function registerIpcHandlers() {
 
   ipcMain.on('window:setPosition', (event, x: number, y: number) => {
     if (!validateIpcSender(event)) return
+    try {
+      assertFiniteNumber(x, 'x')
+      assertFiniteNumber(y, 'y')
+    } catch {
+      return
+    }
     if (!mainWindow) return
     mainWindow.setPosition(Math.round(x), Math.round(y))
   })
@@ -164,6 +171,11 @@ function registerIpcHandlers() {
   // Terminal context menu
   ipcMain.on(TERMINAL_MENU_CHANNELS.SHOW, (event, hasSelection: boolean) => {
     if (!validateIpcSender(event)) return
+    try {
+      assertBoolean(hasSelection, 'hasSelection')
+    } catch {
+      return
+    }
     const menu = Menu.buildFromTemplate([
       {
         label: 'Copy',
@@ -190,6 +202,7 @@ function registerIpcHandlers() {
   // Open URLs in system browser (WSL2-aware)
   ipcMain.handle('shell:openExternal', async (event, url: string) => {
     if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')
+    assertNonEmptyString(url, 'url')
     if (!/^https?:\/\//i.test(url)) return
 
     if (isWSL()) {

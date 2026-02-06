@@ -180,7 +180,7 @@ These close edge cases around plugin embeds, `<base>` tag injection, and form su
 
 IPC handlers accept parameters with TypeScript type annotations but perform no runtime validation. The `contextIsolation: true` + `contextBridge` setup means the renderer can only call explicitly exposed functions, which mitigates this. Runtime validation would be an additional layer of defense.
 
-**Status:** Open — low priority given contextBridge mitigation
+**Status:** Fixed — all IPC parameters validated at runtime via assertion functions
 
 ---
 
