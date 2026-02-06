@@ -30,9 +30,9 @@ vi.mock('vscode-oniguruma', () => ({
 }))
 
 vi.mock('vscode-textmate', () => ({
-  Registry: vi.fn().mockImplementation(() => ({
-    loadGrammar: mockLoadGrammar,
-  })),
+  Registry: vi.fn().mockImplementation(function () {
+    return { loadGrammar: mockLoadGrammar }
+  }),
   parseRawGrammar: vi.fn(),
   INITIAL: { clone: vi.fn(), equals: vi.fn() },
 }))
@@ -102,6 +102,7 @@ describe('TextMateService', () => {
 
   it('gracefully handles null onig.wasm', async () => {
     mockGrammarAPI({ wasmBinary: null })
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
     const service = await getService()
     await service.initialize()
@@ -109,6 +110,10 @@ describe('TextMateService', () => {
     expect(mockLoadWASM).not.toHaveBeenCalled()
     expect(mockSetTokensProvider).not.toHaveBeenCalled()
     expect(service.hasGrammar('go')).toBe(false)
+    expect(warnSpy).toHaveBeenCalledWith(
+      'TextMate: onig.wasm not available, using Monarch tokenizers',
+    )
+    warnSpy.mockRestore()
   })
 
   it('gracefully handles empty grammars', async () => {

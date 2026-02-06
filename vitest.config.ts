@@ -17,7 +17,7 @@ export default defineConfig({
     },
     deps: {
       optimizer: {
-        web: {
+        client: {
           // Don't try to optimize monaco-editor for tests
           exclude: ['monaco-editor'],
         },
@@ -30,7 +30,7 @@ export default defineConfig({
       '@renderer': resolve(__dirname, 'src/renderer'),
       '@main': resolve(__dirname, 'src/main'),
       '@shared': resolve(__dirname, 'src/shared'),
-      // Mock monaco-editor in tests
+      // Mock monaco-editor in tests (Vite 7 can't resolve its entry point)
       'monaco-editor': resolve(__dirname, 'tests/__mocks__/monaco-editor.ts'),
     },
   },
