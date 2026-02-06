@@ -13,8 +13,15 @@ import { execFile } from 'child_process'
 import { readFileSync } from 'fs'
 import { platform } from 'os'
 
+// Dev mode requires an unpackaged build — a packaged app must never honor
+// VITE_DEV_SERVER_URL or NODE_ENV, as that would let env vars trick it
+// into loading remote content in the privileged BrowserWindow.
+const isDev = !app.isPackaged && (
+  process.env.NODE_ENV === 'development' || !!process.env.VITE_DEV_SERVER_URL
+)
+
 // Suppress security warning in dev mode (Vite requires unsafe-eval for HMR)
-if (process.env.NODE_ENV === 'development' || process.env.VITE_DEV_SERVER_URL) {
+if (isDev) {
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
 }
 import { join } from 'path'
@@ -25,6 +32,8 @@ import { registerGrammarHandlers } from './ipc/grammar'
 import { TERMINAL_MENU_CHANNELS } from '@shared/types'
 import { createAppMenu } from './menu'
 import { debugLog } from './logger'
+import { validateIpcSender } from './security/validate-sender'
+import { assertFiniteNumber, assertBoolean, assertNonEmptyString } from './security/validate-ipc-params'
 
 function isWSL(): boolean {
   if (platform() !== 'linux') return false
@@ -62,7 +71,7 @@ function createWindow() {
       preload: join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false, // Required for node-pty
+      sandbox: true,
     },
     frame: false,
     show: false,
@@ -73,8 +82,16 @@ function createWindow() {
     mainWindow?.show()
   })
 
+  // Prevent navigation to untrusted URLs — if renderer content ever tries to navigate
+  // (drag-drop, anchor click, window.location), block it unless it's a known-safe origin.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (process.env.VITE_DEV_SERVER_URL && url.startsWith(process.env.VITE_DEV_SERVER_URL)) return
+    if (!url.startsWith('file://')) event.preventDefault()
+  })
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+
   // Load the app
-  if (process.env.NODE_ENV === 'development' || process.env.VITE_DEV_SERVER_URL) {
+  if (isDev) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173')
     // DevTools can be opened manually with Ctrl+Shift+I or from View menu
   } else {
@@ -96,7 +113,8 @@ function registerIpcHandlers() {
   debugLog('IPC handlers registered')
 
   // Directory selection dialog
-  ipcMain.handle('fs:selectDirectory', async () => {
+  ipcMain.handle('fs:selectDirectory', async (event) => {
+    if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')
     if (!mainWindow) return null
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
@@ -108,11 +126,13 @@ function registerIpcHandlers() {
   })
 
   // Window controls
-  ipcMain.on('window:minimize', () => {
+  ipcMain.on('window:minimize', (event) => {
+    if (!validateIpcSender(event)) return
     mainWindow?.minimize()
   })
 
-  ipcMain.on('window:maximize', () => {
+  ipcMain.on('window:maximize', (event) => {
+    if (!validateIpcSender(event)) return
     if (mainWindow?.isMaximized()) {
       mainWindow.unmaximize()
     } else {
@@ -120,27 +140,43 @@ function registerIpcHandlers() {
     }
   })
 
-  ipcMain.on('window:close', () => {
+  ipcMain.on('window:close', (event) => {
+    if (!validateIpcSender(event)) return
     mainWindow?.close()
   })
 
-  ipcMain.handle('window:getPosition', () => {
+  ipcMain.handle('window:getPosition', (event) => {
+    if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')
     if (!mainWindow) return { x: 0, y: 0 }
     const [x, y] = mainWindow.getPosition()
     return { x, y }
   })
 
-  ipcMain.on('window:setPosition', (_event, x: number, y: number) => {
+  ipcMain.on('window:setPosition', (event, x: number, y: number) => {
+    if (!validateIpcSender(event)) return
+    try {
+      assertFiniteNumber(x, 'x')
+      assertFiniteNumber(y, 'y')
+    } catch {
+      return
+    }
     if (!mainWindow) return
     mainWindow.setPosition(Math.round(x), Math.round(y))
   })
 
-  ipcMain.on('app:quit', () => {
+  ipcMain.on('app:quit', (event) => {
+    if (!validateIpcSender(event)) return
     app.quit()
   })
 
   // Terminal context menu
   ipcMain.on(TERMINAL_MENU_CHANNELS.SHOW, (event, hasSelection: boolean) => {
+    if (!validateIpcSender(event)) return
+    try {
+      assertBoolean(hasSelection, 'hasSelection')
+    } catch {
+      return
+    }
     const menu = Menu.buildFromTemplate([
       {
         label: 'Copy',
@@ -165,7 +201,9 @@ function registerIpcHandlers() {
   })
 
   // Open URLs in system browser (WSL2-aware)
-  ipcMain.handle('shell:openExternal', async (_event, url: string) => {
+  ipcMain.handle('shell:openExternal', async (event, url: string) => {
+    if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')
+    assertNonEmptyString(url, 'url')
     if (!/^https?:\/\//i.test(url)) return
 
     if (isWSL()) {
@@ -184,9 +222,8 @@ app.whenReady().then(() => {
   // Set Content-Security-Policy in production only.
   // Dev mode is excluded: Vite HMR needs WebSocket (ws:) connections and unsafe-eval,
   // and onHeadersReceived applies to all responses which breaks the dev server.
-  const isDev = process.env.NODE_ENV === 'development' || !!process.env.VITE_DEV_SERVER_URL
   if (!isDev) {
-    const csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"
+    const csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self';"
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
       callback({
         responseHeaders: {
@@ -196,6 +233,10 @@ app.whenReady().then(() => {
       })
     })
   }
+
+  // Deny all permission requests — a terminal emulator needs no browser permissions
+  // (camera, microphone, geolocation, notifications, etc.).
+  session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false))
 
   // Set dock icon on macOS in dev mode (packaged apps use the .icns from the app bundle)
   if (process.platform === 'darwin' && app.dock && !app.isPackaged) {

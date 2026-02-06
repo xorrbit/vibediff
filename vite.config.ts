@@ -21,6 +21,7 @@ export default defineConfig({
           resolve: { alias },
           build: {
             outDir: 'dist/main',
+            sourcemap: false,
             rollupOptions: {
               external: ['electron', 'node-pty', 'chokidar', 'simple-git'],
             },
@@ -36,6 +37,7 @@ export default defineConfig({
           resolve: { alias },
           build: {
             outDir: 'dist/preload',
+            sourcemap: false,
           },
         },
       },
@@ -43,7 +45,9 @@ export default defineConfig({
     renderer(),
   ],
   resolve: { alias },
+  server: { host: 'localhost' },
   build: {
     outDir: 'dist/renderer',
+    sourcemap: false,
   },
 })

@@ -1,6 +1,7 @@
 import * as pty from 'node-pty'
-import { platform, tmpdir } from 'os'
-import { existsSync, readlinkSync, mkdirSync, writeFileSync } from 'fs'
+import { app } from 'electron'
+import { platform } from 'os'
+import { existsSync, readlinkSync, lstatSync, mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -26,6 +27,7 @@ interface CwdCache {
 }
 
 // Regex to match OSC 7 escape sequences: \e]7;file://hostname/path\a or \e]7;file://hostname/path\e\\
+// eslint-disable-next-line no-control-regex -- terminal escape sequences intentionally use control characters
 const OSC7_REGEX = /\x1b\]7;file:\/\/[^/]*(\/[^\x07\x1b]*?)(?:\x07|\x1b\\)/
 
 interface ShellIntegration {
@@ -34,12 +36,18 @@ interface ShellIntegration {
 }
 
 function getIntegrationDir(): string {
-  return join(tmpdir(), 'claudedidwhat-shell-integration')
+  return join(app.getPath('userData'), 'shell-integration')
 }
 
 function ensureShellIntegrationScripts(): void {
   const dir = getIntegrationDir()
   mkdirSync(dir, { recursive: true, mode: 0o700 })
+
+  // Defense-in-depth: reject if the path is a symlink
+  const stat = lstatSync(dir)
+  if (stat.isSymbolicLink()) {
+    throw new Error(`Shell integration directory is a symlink — refusing to write: ${dir}`)
+  }
 
   // Bash integration: source user's .bashrc then set up OSC 7 reporting
   const bashScript = `[ -f ~/.bashrc ] && source ~/.bashrc

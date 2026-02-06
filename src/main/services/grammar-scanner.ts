@@ -199,6 +199,13 @@ export class GrammarScanner {
 
       const grammarPath = resolve(extDir, entry.path)
 
+      // Ensure the resolved grammar path stays within the extension directory
+      // to prevent a malicious extension from reading arbitrary files via path traversal.
+      if (!grammarPath.startsWith(extDir + '/') && grammarPath !== extDir) {
+        errors.push(`Grammar path escapes extension directory: ${entry.path}`)
+        continue
+      }
+
       try {
         const rawContent = await readFile(grammarPath, 'utf-8')
 

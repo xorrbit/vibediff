@@ -33,7 +33,7 @@ const isDev = !app.isPackaged && (
 )
 ```
 
-**Status:** Open
+**Status:** Fixed
 
 ---
 
@@ -51,7 +51,7 @@ mainWindow.webContents.on('will-navigate', (event, url) => {
 mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
 ```
 
-**Status:** Open
+**Status:** Fixed
 
 ---
 
@@ -63,7 +63,7 @@ IPC handlers trust any renderer frame that can call the channel. This is normall
 
 **Fix:** Add a central sender validation guard (`event.senderFrame.url`) and reject IPC calls from non-app origins.
 
-**Status:** Open — needs testing
+**Status:** Fixed — all 22 IPC handlers validate sender origin via `validateIpcSender()`
 
 ---
 
@@ -75,7 +75,7 @@ The comment says "Required for node-pty" but node-pty runs in the main process, 
 
 **Fix:** Test with `sandbox: true`. It should work since PTY, git, FS, and grammar operations all live in the main process.
 
-**Status:** Open — needs testing
+**Status:** Fixed — enabled `sandbox: true`; node-pty runs in main process, preload only uses `contextBridge`/`ipcRenderer`
 
 ---
 
@@ -111,7 +111,7 @@ Shell integration scripts are written to a fixed path under temp (`/tmp/claudedi
 
 **Fix:** Use a per-user, app-controlled directory (e.g. app data) or `mkdtemp` with ownership/symlink checks before writing.
 
-**Status:** Open
+**Status:** Fixed — shell integration scripts now use `app.getPath('userData')` with symlink rejection
 
 ---
 
@@ -123,7 +123,7 @@ Grammar paths from extension metadata are resolved and read, but the resolved pa
 
 **Fix:** Resolve the path and verify it starts with `extDir` before reading.
 
-**Status:** Open
+**Status:** Fixed
 
 ---
 
@@ -139,7 +139,7 @@ The production CSP (`default-src 'self'`) silently blocks this external import. 
 
 **Fix:** Bundle JetBrains Mono locally as a `@font-face` asset, or remove the import if fallback fonts are acceptable.
 
-**Status:** Open
+**Status:** Fixed — removed dead import; fallback fonts (SF Mono, Fira Code, Menlo, etc.) are used
 
 ---
 
@@ -154,7 +154,7 @@ Permission behavior varies by API/platform, but there is no explicit allow/deny 
 session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false))
 ```
 
-**Status:** Open
+**Status:** Fixed
 
 ---
 
@@ -170,7 +170,7 @@ object-src 'none'; base-uri 'self'; form-action 'self';
 
 These close edge cases around plugin embeds, `<base>` tag injection, and form submissions to external URLs.
 
-**Status:** Open
+**Status:** Fixed
 
 ---
 
@@ -180,7 +180,7 @@ These close edge cases around plugin embeds, `<base>` tag injection, and form su
 
 IPC handlers accept parameters with TypeScript type annotations but perform no runtime validation. The `contextIsolation: true` + `contextBridge` setup means the renderer can only call explicitly exposed functions, which mitigates this. Runtime validation would be an additional layer of defense.
 
-**Status:** Open — low priority given contextBridge mitigation
+**Status:** Fixed — all IPC parameters validated at runtime via assertion functions
 
 ---
 
@@ -192,7 +192,7 @@ Parameters like `ref` and `baseBranch` are interpolated into `simple-git` comman
 
 **Fix:** Validate that `ref` and `baseBranch` match `/^[\w\-\.\/]+$/` or at minimum don't start with `--`.
 
-**Status:** Open — low priority
+**Status:** Fixed
 
 ---
 
@@ -212,7 +212,7 @@ No security-specific ESLint plugins are configured. Adding `eslint-plugin-securi
 
 `any` types bypass TypeScript's type system and can hide type confusion bugs. Currently set to `"warn"` — should be `"error"` in a security-conscious codebase.
 
-**Status:** Open — low priority
+**Status:** Fixed — promoted to `"error"`; codebase already has zero `any` usages
 
 ---
 
@@ -224,7 +224,7 @@ Vite defaults to `localhost`, but if a developer runs with `--host 0.0.0.0`, the
 
 **Fix:** Explicitly set `server: { host: 'localhost' }`.
 
-**Status:** Open — low priority
+**Status:** Fixed
 
 ---
 
@@ -236,11 +236,15 @@ Vite defaults to `localhost`, but if a developer runs with `--host 0.0.0.0`, the
 
 Electron-builder defaults to ASAR packing. This is not currently a vulnerability, but explicitly setting `"asar": true` prevents accidental behavior changes in future config edits.
 
+**Status:** Fixed — `"asar": true` set explicitly in `electron-builder.json`
+
 ### Explicit `build.sourcemap: false` for Clarity
 
 **File:** `vite.config.ts`
 
 Vite production builds default to no source maps unless enabled. This is not currently a vulnerability. Explicitly setting `sourcemap: false` can make intent clear.
+
+**Status:** Fixed — `sourcemap: false` set explicitly on main, preload, and renderer builds
 
 ## Not Vulnerabilities (Expected Terminal Emulator Behavior)
 

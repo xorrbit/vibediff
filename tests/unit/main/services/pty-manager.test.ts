@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockPtySpawn, mockPlatform, mockTmpdir, mockExistsSync, mockReadlinkSync, mockExecAsync, mockMkdirSync, mockWriteFileSync } = vi.hoisted(() => {
+const { mockPtySpawn, mockPlatform, mockExistsSync, mockReadlinkSync, mockLstatSync, mockExecAsync, mockMkdirSync, mockWriteFileSync, mockGetPath } = vi.hoisted(() => {
   const mockPtyProcess = {
     pid: 12345,
     onData: vi.fn(),
@@ -12,14 +12,21 @@ const { mockPtySpawn, mockPlatform, mockTmpdir, mockExistsSync, mockReadlinkSync
   return {
     mockPtySpawn: vi.fn(() => mockPtyProcess),
     mockPlatform: vi.fn(),
-    mockTmpdir: vi.fn(() => '/tmp'),
     mockExistsSync: vi.fn(),
     mockReadlinkSync: vi.fn(),
+    mockLstatSync: vi.fn(() => ({ isSymbolicLink: () => false })),
     mockExecAsync: vi.fn(),
     mockMkdirSync: vi.fn(),
     mockWriteFileSync: vi.fn(),
+    mockGetPath: vi.fn(() => '/mock/userData'),
   }
 })
+
+vi.mock('electron', () => ({
+  app: {
+    getPath: mockGetPath,
+  },
+}))
 
 vi.mock('node-pty', () => {
   const mod = { spawn: mockPtySpawn }
@@ -27,12 +34,12 @@ vi.mock('node-pty', () => {
 })
 
 vi.mock('os', () => {
-  const mod = { platform: mockPlatform, tmpdir: mockTmpdir }
+  const mod = { platform: mockPlatform }
   return { ...mod, default: mod }
 })
 
 vi.mock('fs', () => {
-  const mod = { existsSync: mockExistsSync, readlinkSync: mockReadlinkSync, mkdirSync: mockMkdirSync, writeFileSync: mockWriteFileSync }
+  const mod = { existsSync: mockExistsSync, readlinkSync: mockReadlinkSync, lstatSync: mockLstatSync, mkdirSync: mockMkdirSync, writeFileSync: mockWriteFileSync }
   return { ...mod, default: mod }
 })
 
@@ -359,6 +366,33 @@ describe('PtyManager', () => {
         expect(call[2]).toEqual({ mode: 0o600 })
       }
       expect(mockWriteFileSync).toHaveBeenCalledTimes(3)
+    })
+
+    it('uses app userData path for integration directory', () => {
+      manager.spawn('session-1', '/home/user')
+
+      expect(mockMkdirSync).toHaveBeenCalledWith(
+        '/mock/userData/shell-integration',
+        { recursive: true, mode: 0o700 }
+      )
+    })
+
+    it('rejects symlinked integration directory', () => {
+      mockLstatSync.mockReturnValueOnce({ isSymbolicLink: () => true })
+
+      // Should not throw from spawn (error is caught), but should log error
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      manager.spawn('session-1', '/home/user')
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to write shell integration scripts:',
+        expect.objectContaining({
+          message: expect.stringContaining('symlink'),
+        })
+      )
+      // Scripts should NOT have been written
+      expect(mockWriteFileSync).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
     })
   })
 })

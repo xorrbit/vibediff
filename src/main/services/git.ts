@@ -6,6 +6,15 @@ import { join, resolve, dirname } from 'path'
 import { debugLog } from '../logger'
 
 /**
+ * Validate a git ref (branch name, tag, commit) against argument injection.
+ * simple-git uses execFile so shell injection isn't possible, but a ref
+ * starting with "--" could be interpreted as a git flag by some subcommands.
+ */
+function isValidRef(ref: string): boolean {
+  return /^[\w\-./]+$/.test(ref)
+}
+
+/**
  * Resolve a repo-relative file path and verify it stays within the repo root.
  * Returns the resolved absolute path, or null if the path escapes the repo.
  */
@@ -201,6 +210,7 @@ export class GitService {
    * Get list of changed files compared to base branch.
    */
   async getChangedFiles(dir: string, baseBranch?: string): Promise<ChangedFile[]> {
+    if (baseBranch && !isValidRef(baseBranch)) return []
     const result = this.getGitWithRoot(dir)
     if (!result) return []
     const { git, gitRoot } = result
@@ -374,6 +384,7 @@ export class GitService {
     filePath: string,
     baseBranch?: string
   ): Promise<DiffContent | null> {
+    if (baseBranch && !isValidRef(baseBranch)) return null
     const result = this.getGitWithRoot(dir)
     if (!result) return null
 
@@ -405,6 +416,7 @@ export class GitService {
     filePath: string,
     ref?: string
   ): Promise<string | null> {
+    if (ref && !isValidRef(ref)) return null
     const result = this.getGitWithRoot(dir)
 
     try {
