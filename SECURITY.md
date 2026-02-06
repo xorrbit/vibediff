@@ -212,7 +212,7 @@ No security-specific ESLint plugins are configured. Adding `eslint-plugin-securi
 
 `any` types bypass TypeScript's type system and can hide type confusion bugs. Currently set to `"warn"` — should be `"error"` in a security-conscious codebase.
 
-**Status:** Open — low priority
+**Status:** Fixed — promoted to `"error"`; codebase already has zero `any` usages
 
 ---
 
@@ -236,11 +236,15 @@ Vite defaults to `localhost`, but if a developer runs with `--host 0.0.0.0`, the
 
 Electron-builder defaults to ASAR packing. This is not currently a vulnerability, but explicitly setting `"asar": true` prevents accidental behavior changes in future config edits.
 
+**Status:** Fixed — `"asar": true` set explicitly in `electron-builder.json`
+
 ### Explicit `build.sourcemap: false` for Clarity
 
 **File:** `vite.config.ts`
 
 Vite production builds default to no source maps unless enabled. This is not currently a vulnerability. Explicitly setting `sourcemap: false` can make intent clear.
+
+**Status:** Fixed — `sourcemap: false` set explicitly on main, preload, and renderer builds
 
 ## Not Vulnerabilities (Expected Terminal Emulator Behavior)
 

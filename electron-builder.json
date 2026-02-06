@@ -11,6 +11,7 @@
   "npmRebuild": true,
   "nodeGypRebuild": false,
   "buildDependenciesFromSource": false,
+  "asar": true,
   "mac": {
     "target": [
       {
