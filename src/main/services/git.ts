@@ -1,9 +1,10 @@
 import simpleGit, { SimpleGit, StatusResult } from 'simple-git'
 import { ChangedFile, DiffContent, FileStatus } from '@shared/types'
 import { existsSync } from 'fs'
-import { readFile } from 'fs/promises'
+import { readFile, realpath } from 'fs/promises'
 import { join, resolve, dirname } from 'path'
 import { debugLog } from '../logger'
+import { isPathInside } from '../security/path-utils'
 
 /**
  * Validate a git ref (branch name, tag, commit) against argument injection.
@@ -20,7 +21,7 @@ function isValidRef(ref: string): boolean {
  */
 function resolveRepoPath(gitRoot: string, filePath: string): string | null {
   const resolved = resolve(gitRoot, filePath)
-  if (!resolved.startsWith(gitRoot + '/') && resolved !== gitRoot) {
+  if (!isPathInside(gitRoot, resolved)) {
     return null
   }
   return resolved
@@ -375,6 +376,27 @@ export class GitService {
     return files
   }
 
+  private async resolveReadableRepoPath(gitRoot: string, filePath: string): Promise<string | null> {
+    const resolved = resolveRepoPath(gitRoot, filePath)
+    if (!resolved) return null
+
+    // Reject symlink escapes when the file exists.
+    try {
+      const [realGitRoot, realResolved] = await Promise.all([
+        realpath(gitRoot),
+        realpath(resolved),
+      ])
+      if (!isPathInside(realGitRoot, realResolved)) {
+        return null
+      }
+    } catch {
+      // If the path exists but realpath failed, fail closed.
+      if (existsSync(resolved)) return null
+    }
+
+    return resolved
+  }
+
   /**
    * Get diff content for a specific file.
    * Reads working file from git root since paths are repo-relative.
@@ -392,7 +414,7 @@ export class GitService {
       const base = baseBranch || (await this.getMainBranch(dir)) || 'HEAD'
 
       // Reject paths that escape the repo root
-      const safePath = resolveRepoPath(result.gitRoot, filePath)
+      const safePath = await this.resolveReadableRepoPath(result.gitRoot, filePath)
       if (!safePath) return null
 
       // Fetch original (git show) and modified (working file) in parallel
@@ -422,10 +444,12 @@ export class GitService {
     try {
       if (ref) {
         if (!result) return null
+        const safePath = await this.resolveReadableRepoPath(result.gitRoot, filePath)
+        if (!safePath) return null
         return await result.git.show([`${ref}:${filePath}`])
       } else {
         const readDir = result?.gitRoot || dir
-        const safePath = resolveRepoPath(readDir, filePath)
+        const safePath = await this.resolveReadableRepoPath(readDir, filePath)
         if (!safePath) return null
         return await readFile(safePath, 'utf-8')
       }

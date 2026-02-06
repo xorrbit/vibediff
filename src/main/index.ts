@@ -34,6 +34,7 @@ import { createAppMenu } from './menu'
 import { debugLog } from './logger'
 import { validateIpcSender } from './security/validate-sender'
 import { assertFiniteNumber, assertBoolean, assertNonEmptyString } from './security/validate-ipc-params'
+import { isTrustedRendererUrl } from './security/trusted-renderer'
 
 function isWSL(): boolean {
   if (platform() !== 'linux') return false
@@ -85,8 +86,9 @@ function createWindow() {
   // Prevent navigation to untrusted URLs — if renderer content ever tries to navigate
   // (drag-drop, anchor click, window.location), block it unless it's a known-safe origin.
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (process.env.VITE_DEV_SERVER_URL && url.startsWith(process.env.VITE_DEV_SERVER_URL)) return
-    if (!url.startsWith('file://')) event.preventDefault()
+    if (!isTrustedRendererUrl(url)) {
+      event.preventDefault()
+    }
   })
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
 

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const { mockExistsSync, mockSimpleGit, mockReadFile } = vi.hoisted(() => {
+const { mockExistsSync, mockSimpleGit, mockReadFile, mockRealpath } = vi.hoisted(() => {
   const mockGitInstance = {
     branchLocal: vi.fn(),
     getRemotes: vi.fn(),
@@ -13,6 +13,7 @@ const { mockExistsSync, mockSimpleGit, mockReadFile } = vi.hoisted(() => {
     mockExistsSync: vi.fn(),
     mockSimpleGit: vi.fn(() => mockGitInstance),
     mockReadFile: vi.fn(),
+    mockRealpath: vi.fn(async (path: string) => path),
   }
 })
 
@@ -22,7 +23,7 @@ vi.mock('fs', () => {
 })
 
 vi.mock('fs/promises', () => {
-  const mod = { readFile: mockReadFile }
+  const mod = { readFile: mockReadFile, realpath: mockRealpath }
   return { ...mod, default: mod }
 })
 
@@ -39,9 +40,11 @@ function getGitMock() {
 
 describe('GitService', () => {
   let service: GitService
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
     vi.clearAllMocks()
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     service = new GitService()
     // Default: .git exists in /repo
     mockExistsSync.mockImplementation((path: string) => {
@@ -49,6 +52,11 @@ describe('GitService', () => {
     })
     // Default: file reads fail (like real fs for nonexistent files)
     mockReadFile.mockRejectedValue(new Error('ENOENT'))
+    mockRealpath.mockImplementation(async (path: string) => path)
+  })
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore()
   })
 
   describe('findGitRoot', () => {
@@ -547,6 +555,15 @@ describe('GitService', () => {
       expect(mockReadFile).toHaveBeenCalledWith('/repo/src/file.ts', 'utf-8')
     })
 
+    it('getFileContent returns null for ../ path traversal (with ref)', async () => {
+      getGitMock().show.mockResolvedValue('content at ref')
+
+      const result = await service.getFileContent('/repo', '../../etc/passwd', 'HEAD')
+
+      expect(result).toBeNull()
+      expect(getGitMock().show).not.toHaveBeenCalled()
+    })
+
     it('getFileDiff rejects absolute paths', async () => {
       getGitMock().show.mockResolvedValue('content')
       getGitMock().getRemotes.mockResolvedValue([{ name: 'origin' }])
@@ -556,6 +573,38 @@ describe('GitService', () => {
       const result = await service.getFileDiff('/repo', '/etc/passwd')
 
       expect(result).toBeNull()
+    })
+
+    it('getFileDiff rejects symlink escapes that resolve outside repo', async () => {
+      getGitMock().show.mockResolvedValue('content')
+      getGitMock().getRemotes.mockResolvedValue([{ name: 'origin' }])
+      getGitMock().raw.mockResolvedValue('refs/remotes/origin/main\n')
+
+      mockExistsSync.mockImplementation((path: string) => path === '/repo/.git' || path === '/repo/link.txt')
+      mockRealpath.mockImplementation(async (path: string) => {
+        if (path === '/repo') return '/repo'
+        if (path === '/repo/link.txt') return '/etc/passwd'
+        return path
+      })
+
+      const result = await service.getFileDiff('/repo', 'link.txt')
+
+      expect(result).toBeNull()
+      expect(mockReadFile).not.toHaveBeenCalled()
+    })
+
+    it('getFileContent rejects symlink escapes that resolve outside repo', async () => {
+      mockExistsSync.mockImplementation((path: string) => path === '/repo/.git' || path === '/repo/link.txt')
+      mockRealpath.mockImplementation(async (path: string) => {
+        if (path === '/repo') return '/repo'
+        if (path === '/repo/link.txt') return '/etc/passwd'
+        return path
+      })
+
+      const result = await service.getFileContent('/repo', 'link.txt')
+
+      expect(result).toBeNull()
+      expect(mockReadFile).not.toHaveBeenCalled()
     })
   })
 

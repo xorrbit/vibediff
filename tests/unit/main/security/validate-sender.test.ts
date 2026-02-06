@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockIsPackaged } = vi.hoisted(() => {
-  return { mockIsPackaged: { value: false } }
+const { mockIsPackaged, mockGetAppPath } = vi.hoisted(() => {
+  return {
+    mockIsPackaged: { value: false },
+    mockGetAppPath: vi.fn(() => '/app'),
+  }
 })
 
 vi.mock('electron', () => ({
@@ -9,36 +12,51 @@ vi.mock('electron', () => ({
     get isPackaged() {
       return mockIsPackaged.value
     },
+    getAppPath: mockGetAppPath,
   },
 }))
 
 import { validateIpcSender } from '@main/security/validate-sender'
 
-function makeFakeEvent(url: string) {
-  return { senderFrame: { url } } as any
+function makeFakeEvent(url: string, options?: { isMainFrame?: boolean }) {
+  const senderFrame = { url }
+  const isMainFrame = options?.isMainFrame ?? true
+
+  return {
+    senderFrame,
+    sender: {
+      mainFrame: isMainFrame ? senderFrame : { url },
+    },
+  } as any
 }
 
 describe('validateIpcSender', () => {
   beforeEach(() => {
     mockIsPackaged.value = false
+    mockGetAppPath.mockReturnValue('/app')
     delete process.env.VITE_DEV_SERVER_URL
   })
 
   describe('file:// origins', () => {
-    it('allows file:// URLs (production renderer)', () => {
+    it('allows only the packaged renderer entrypoint', () => {
       const event = makeFakeEvent('file:///app/dist/renderer/index.html')
       expect(validateIpcSender(event)).toBe(true)
     })
 
-    it('allows file:// URLs when packaged', () => {
+    it('allows trusted file URL when packaged', () => {
       mockIsPackaged.value = true
       const event = makeFakeEvent('file:///app/dist/renderer/index.html')
       expect(validateIpcSender(event)).toBe(true)
     })
 
-    it('allows bare file:// URL', () => {
+    it('rejects arbitrary local file URLs', () => {
+      const event = makeFakeEvent('file:///tmp/evil.html')
+      expect(validateIpcSender(event)).toBe(false)
+    })
+
+    it('rejects bare file:// URL', () => {
       const event = makeFakeEvent('file://')
-      expect(validateIpcSender(event)).toBe(true)
+      expect(validateIpcSender(event)).toBe(false)
     })
   })
 
@@ -75,6 +93,12 @@ describe('validateIpcSender', () => {
   })
 
   describe('rejected origins', () => {
+    it('rejects non-main-frame senders', () => {
+      process.env.VITE_DEV_SERVER_URL = 'http://localhost:5173'
+      const event = makeFakeEvent('http://localhost:5173/', { isMainFrame: false })
+      expect(validateIpcSender(event)).toBe(false)
+    })
+
     it('rejects http:// URLs from random hosts', () => {
       const event = makeFakeEvent('http://evil.com/')
       expect(validateIpcSender(event)).toBe(false)
@@ -120,12 +144,12 @@ describe('validateIpcSender', () => {
 
   describe('error handling', () => {
     it('returns false when senderFrame is null', () => {
-      const event = { senderFrame: null } as any
+      const event = { senderFrame: null, sender: { mainFrame: null } } as any
       expect(validateIpcSender(event)).toBe(false)
     })
 
     it('returns false when senderFrame is undefined', () => {
-      const event = {} as any
+      const event = { sender: { mainFrame: null } } as any
       expect(validateIpcSender(event)).toBe(false)
     })
 

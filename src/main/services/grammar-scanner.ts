@@ -1,8 +1,9 @@
 import { homedir, platform } from 'os'
 import { join, resolve } from 'path'
-import { readFile, access } from 'fs/promises'
+import { readFile, access, realpath } from 'fs/promises'
 import { readFileSync } from 'fs'
 import { GrammarContribution, GrammarScanResult } from '@shared/types'
+import { isPathInside } from '../security/path-utils'
 
 function isWSL(): boolean {
   if (platform() !== 'linux') return false
@@ -163,6 +164,27 @@ export class GrammarScanner {
     return null
   }
 
+  private async resolveSafeGrammarPath(extDir: string, grammarRelativePath: string): Promise<string | null> {
+    const grammarPath = resolve(extDir, grammarRelativePath)
+
+    // First do lexical containment.
+    if (!isPathInside(extDir, grammarPath)) return null
+
+    // Then resolve symlinks to prevent escapes through linked files/directories.
+    try {
+      const [realExtDir, realGrammarPath] = await Promise.all([
+        realpath(extDir),
+        realpath(grammarPath),
+      ])
+
+      if (!isPathInside(realExtDir, realGrammarPath)) return null
+    } catch {
+      // If the grammar file does not exist yet, let the read step surface the error.
+    }
+
+    return grammarPath
+  }
+
   private async loadExtensionGrammars(extDir: string): Promise<{ grammars: GrammarContribution[]; errors: string[] }> {
     const grammars: GrammarContribution[] = []
     const errors: string[] = []
@@ -197,11 +219,8 @@ export class GrammarScanner {
       // Skip grammars that have no associated language (embedded grammars like regex)
       if (!entry.language) continue
 
-      const grammarPath = resolve(extDir, entry.path)
-
-      // Ensure the resolved grammar path stays within the extension directory
-      // to prevent a malicious extension from reading arbitrary files via path traversal.
-      if (!grammarPath.startsWith(extDir + '/') && grammarPath !== extDir) {
+      const grammarPath = await this.resolveSafeGrammarPath(extDir, entry.path)
+      if (!grammarPath) {
         errors.push(`Grammar path escapes extension directory: ${entry.path}`)
         continue
       }

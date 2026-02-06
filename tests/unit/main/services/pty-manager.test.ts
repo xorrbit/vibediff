@@ -201,8 +201,10 @@ describe('PtyManager', () => {
       mockPtySpawn.mockImplementationOnce(() => {
         throw new Error('spawn failed')
       })
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       expect(() => manager.spawn('session-1', '/home/user')).toThrow('Failed to spawn shell')
+      consoleSpy.mockRestore()
     })
   })
 

@@ -45,12 +45,16 @@ describe('useGitDiff', () => {
 
   describe('initial loading', () => {
     it('starts with loading state', () => {
-      const { result } = renderHook(() =>
+      // Keep git root unresolved to avoid async updates outside act() in this sync assertion test.
+      mockGit.findGitRoot.mockImplementation(() => new Promise(() => {}))
+
+      const { result, unmount } = renderHook(() =>
         useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
       )
 
       expect(result.current.isLoading).toBe(true)
       expect(result.current.files).toEqual([])
+      unmount()
     })
 
     it('delays initial load by 500ms', async () => {
@@ -310,7 +314,11 @@ describe('useGitDiff', () => {
 
   describe('refresh', () => {
     it('clears cache and reloads files', async () => {
-      mockGit.getChangedFiles.mockResolvedValue([{ path: 'file.ts', status: 'M' }])
+      mockGit.getChangedFiles
+        .mockResolvedValueOnce([{ path: 'file.ts', status: 'M' }])
+        .mockImplementationOnce(
+          () => new Promise((resolve) => setTimeout(() => resolve([{ path: 'file.ts', status: 'M' }]), 50))
+        )
       mockGit.getFileDiff.mockResolvedValue({ original: 'old', modified: 'new' })
 
       const { result } = renderHook(() =>
@@ -325,12 +333,16 @@ describe('useGitDiff', () => {
 
       const callsBefore = mockGit.getChangedFiles.mock.calls.length
 
-      act(() => {
+      await act(async () => {
         result.current.refresh()
       })
 
       expect(result.current.isLoading).toBe(true)
       expect(mockGit.getChangedFiles.mock.calls.length).toBe(callsBefore + 1)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50)
+      })
     })
 
     it('does not refetch diff when selected file is no longer in changed files', async () => {
@@ -382,6 +394,7 @@ describe('useGitDiff', () => {
     it('handles diff load failure gracefully', async () => {
       mockGit.getChangedFiles.mockResolvedValue([{ path: 'file.ts', status: 'M' }])
       mockGit.getFileDiff.mockRejectedValue(new Error('Diff error'))
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       const { result } = renderHook(() =>
         useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
@@ -394,6 +407,7 @@ describe('useGitDiff', () => {
 
       expect(result.current.diffContent).toBeNull()
       expect(result.current.isDiffLoading).toBe(false)
+      errorSpy.mockRestore()
     })
   })
 

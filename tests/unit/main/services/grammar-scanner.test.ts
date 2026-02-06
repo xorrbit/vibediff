@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { join } from 'path'
 
-const { mockReadFile, mockAccess } = vi.hoisted(() => ({
+const { mockReadFile, mockAccess, mockRealpath } = vi.hoisted(() => ({
   mockReadFile: vi.fn(),
   mockAccess: vi.fn(),
+  mockRealpath: vi.fn(async (path: string) => path),
 }))
 
 vi.mock('os', () => {
@@ -17,7 +18,7 @@ vi.mock('fs', () => {
 })
 
 vi.mock('fs/promises', () => {
-  const mod = { readFile: mockReadFile, access: mockAccess }
+  const mod = { readFile: mockReadFile, access: mockAccess, realpath: mockRealpath }
   return { ...mod, default: mod }
 })
 
@@ -53,6 +54,7 @@ describe('GrammarScanner', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     scanner = new GrammarScanner()
+    mockRealpath.mockImplementation(async (path: string) => path)
   })
 
   describe('scan', () => {
@@ -219,6 +221,36 @@ describe('GrammarScanner', () => {
           })
         }
         throw new Error(`Unexpected readFile: ${path}`)
+      })
+
+      const result = await scanner.scan()
+
+      expect(result.grammars).toEqual([])
+      expect(result.errors).toHaveLength(1)
+      expect(result.errors[0]).toContain('escapes extension directory')
+    })
+
+    it('rejects symlinked grammar files that resolve outside extension directory', async () => {
+      const extDir = join(extensionsDir, 'ext-malicious')
+      const lexicalPath = join(extDir, 'syntaxes', 'python.tmLanguage.json')
+
+      mockAccess.mockResolvedValue(undefined)
+      mockReadFile.mockImplementation(async (path: any) => {
+        if (path === extensionsJsonPath) {
+          return makeExtensionsJson([{ id: 'malicious-ext', relativeLocation: 'ext-malicious' }])
+        }
+        if (path === join(extDir, 'package.json')) {
+          return makePackageJson({
+            grammars: [{ language: 'python', scopeName: 'source.python', path: 'syntaxes/python.tmLanguage.json' }],
+            languages: [{ id: 'python', extensions: ['.py'] }],
+          })
+        }
+        throw new Error(`Unexpected readFile: ${path}`)
+      })
+      mockRealpath.mockImplementation(async (path: string) => {
+        if (path === extDir) return extDir
+        if (path === lexicalPath) return '/etc/passwd'
+        return path
       })
 
       const result = await scanner.scan()
