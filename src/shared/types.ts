@@ -22,6 +22,7 @@ export const GIT_CHANNELS = {
   GET_CHANGED_FILES: 'git:getChangedFiles',
   GET_FILE_DIFF: 'git:getFileDiff',
   GET_FILE_CONTENT: 'git:getFileContent',
+  FIND_GIT_ROOT: 'git:findGitRoot',
 } as const
 
 // File system IPC channels
@@ -103,6 +104,7 @@ export interface ElectronAPI {
     getChangedFiles: (dir: string, baseBranch?: string) => Promise<ChangedFile[]>
     getFileDiff: (dir: string, filePath: string, baseBranch?: string) => Promise<DiffContent | null>
     getFileContent: (dir: string, filePath: string, ref?: string) => Promise<string | null>
+    findGitRoot: (dir: string) => Promise<string | null>
   }
   fs: {
     watchStart: (sessionId: string, dir: string) => Promise<void>

@@ -83,6 +83,22 @@ describe('FileWatcher', () => {
       expect(mock.close).toHaveBeenCalled()
     })
 
+    it('skips restart when watching same directory for same session', () => {
+      watcher.watch('session-1', '/project', vi.fn())
+      // Get the mock watcher *before* clearing call count
+      const mock = getWatcherMock()
+      mock.close.mockClear()
+      mockChokidarWatch.mockClear()
+
+      // Watch same dir again
+      watcher.watch('session-1', '/project', vi.fn())
+
+      // Should not have created a new chokidar watcher or closed the old one
+      // (mockChokidarWatch calls from getWatcherMock are excluded since we cleared)
+      expect(mockChokidarWatch).not.toHaveBeenCalled()
+      expect(mock.close).not.toHaveBeenCalled()
+    })
+
     it('registers event handlers for add, change, unlink, error', () => {
       watcher.watch('session-1', '/project', vi.fn())
 

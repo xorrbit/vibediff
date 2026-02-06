@@ -24,4 +24,8 @@ export function registerGitHandlers(ipcMain: IpcMain) {
   ipcMain.handle(GIT_CHANNELS.GET_FILE_CONTENT, async (_event, dir: string, filePath: string, ref?: string) => {
     return gitService.getFileContent(dir, filePath, ref)
   })
+
+  ipcMain.handle(GIT_CHANNELS.FIND_GIT_ROOT, (_event, dir: string) => {
+    return gitService.findGitRoot(dir)
+  })
 }

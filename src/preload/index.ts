@@ -61,6 +61,9 @@ const electronAPI: ElectronAPI = {
 
     getFileContent: (dir: string, filePath: string, ref?: string): Promise<string | null> =>
       ipcRenderer.invoke(GIT_CHANNELS.GET_FILE_CONTENT, dir, filePath, ref),
+
+    findGitRoot: (dir: string): Promise<string | null> =>
+      ipcRenderer.invoke(GIT_CHANNELS.FIND_GIT_ROOT, dir),
   },
 
   fs: {

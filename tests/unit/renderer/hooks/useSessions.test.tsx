@@ -264,6 +264,7 @@ describe('useSessions (SessionContext)', () => {
     it('uses branch name when not main/master', async () => {
       // Mock git to return a feature branch
       vi.mocked(window.electronAPI.git.getCurrentBranch).mockResolvedValue('feature/awesome')
+      vi.mocked(window.electronAPI.git.findGitRoot).mockResolvedValue('/test/project')
 
       const { result } = renderHook(() => useSessionContext(), { wrapper })
 
@@ -413,6 +414,7 @@ describe('useSessions (SessionContext)', () => {
     it('updates session name when branch changes', async () => {
       vi.useFakeTimers()
       vi.mocked(window.electronAPI.pty.getCwd).mockResolvedValue('/test/project')
+      vi.mocked(window.electronAPI.git.findGitRoot).mockResolvedValue('/test/project')
 
       // Initially return main
       vi.mocked(window.electronAPI.git.getCurrentBranch).mockResolvedValue('main')

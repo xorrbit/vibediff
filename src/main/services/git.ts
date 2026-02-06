@@ -1,47 +1,88 @@
 import simpleGit, { SimpleGit, StatusResult } from 'simple-git'
 import { ChangedFile, DiffContent, FileStatus } from '@shared/types'
 import { existsSync } from 'fs'
-import { join } from 'path'
+import { join, resolve, dirname } from 'path'
 
 export class GitService {
-  // Cache main branch per directory (rarely changes during session)
+  // Cache main branch per git root (rarely changes during session)
   private mainBranchCache = new Map<string, { branch: string; timestamp: number }>()
   private static MAIN_BRANCH_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
-  // Cache SimpleGit instances per directory
+  // Cache SimpleGit instances per git root
   private gitInstances = new Map<string, SimpleGit>()
 
-  // Cache git repo check (directories rarely become/stop being git repos)
-  private gitRepoCache = new Map<string, { isRepo: boolean; timestamp: number }>()
-  private static GIT_REPO_CACHE_TTL = 30 * 1000 // 30 seconds
+  // Cache git root lookup (maps any directory to its git root, or null)
+  private gitRootCache = new Map<string, { gitRoot: string | null; timestamp: number }>()
+  private static GIT_ROOT_CACHE_TTL = 10 * 60 * 1000 // 10 minutes
 
   /**
-   * Check if a directory is a git repository (cached).
+   * Find the git root for a directory by walking up parent dirs.
+   * Caches every visited directory along the way (hierarchical backfill).
+   * Negative results (non-git dirs) are cached too.
    */
-  private isGitRepo(dir: string): boolean {
-    const cached = this.gitRepoCache.get(dir)
-    if (cached && Date.now() - cached.timestamp < GitService.GIT_REPO_CACHE_TTL) {
-      return cached.isRepo
+  findGitRoot(dir: string): string | null {
+    const normalizedDir = resolve(dir)
+
+    // Check cache first
+    const cached = this.gitRootCache.get(normalizedDir)
+    if (cached && Date.now() - cached.timestamp < GitService.GIT_ROOT_CACHE_TTL) {
+      return cached.gitRoot
     }
-    const isRepo = existsSync(join(dir, '.git'))
-    this.gitRepoCache.set(dir, { isRepo, timestamp: Date.now() })
-    return isRepo
+
+    // Walk up the directory tree
+    const visited: string[] = []
+    let current = normalizedDir
+
+    while (true) {
+      // Check if this intermediate dir is already cached
+      const cachedIntermediate = this.gitRootCache.get(current)
+      if (cachedIntermediate && Date.now() - cachedIntermediate.timestamp < GitService.GIT_ROOT_CACHE_TTL) {
+        // Backfill all visited dirs with the same result
+        const now = Date.now()
+        for (const dir of visited) {
+          this.gitRootCache.set(dir, { gitRoot: cachedIntermediate.gitRoot, timestamp: now })
+        }
+        return cachedIntermediate.gitRoot
+      }
+
+      visited.push(current)
+
+      if (existsSync(join(current, '.git'))) {
+        // Found git root — backfill all visited dirs
+        const now = Date.now()
+        for (const dir of visited) {
+          this.gitRootCache.set(dir, { gitRoot: current, timestamp: now })
+        }
+        return current
+      }
+
+      const parent = dirname(current)
+      if (parent === current) {
+        // Reached filesystem root without finding .git
+        const now = Date.now()
+        for (const dir of visited) {
+          this.gitRootCache.set(dir, { gitRoot: null, timestamp: now })
+        }
+        return null
+      }
+      current = parent
+    }
   }
 
   /**
    * Get a cached SimpleGit instance for a directory.
+   * Resolves to git root first, keys instance by git root.
    */
   private getGit(dir: string): SimpleGit | null {
-    if (!this.isGitRepo(dir)) {
-      // Clean up cached instance if directory is no longer a repo
-      this.gitInstances.delete(dir)
+    const gitRoot = this.findGitRoot(dir)
+    if (!gitRoot) {
       return null
     }
 
-    let git = this.gitInstances.get(dir)
+    let git = this.gitInstances.get(gitRoot)
     if (!git) {
-      git = simpleGit(dir)
-      this.gitInstances.set(dir, git)
+      git = simpleGit(gitRoot)
+      this.gitInstances.set(gitRoot, git)
     }
     return git
   }
@@ -64,11 +105,14 @@ export class GitService {
 
   /**
    * Detect the main branch (main, master, or default).
-   * Results are cached for 5 minutes to avoid repeated git operations.
+   * Results are cached by git root for 5 minutes to avoid repeated git operations.
    */
   async getMainBranch(dir: string): Promise<string | null> {
-    // Check cache first
-    const cached = this.mainBranchCache.get(dir)
+    const gitRoot = this.findGitRoot(dir)
+    if (!gitRoot) return null
+
+    // Check cache first (keyed by git root)
+    const cached = this.mainBranchCache.get(gitRoot)
     if (cached && Date.now() - cached.timestamp < GitService.MAIN_BRANCH_CACHE_TTL) {
       return cached.branch
     }
@@ -85,7 +129,7 @@ export class GitService {
           const match = result.match(/refs\/remotes\/origin\/(.+)/)
           if (match) {
             const branch = match[1].trim()
-            this.mainBranchCache.set(dir, { branch, timestamp: Date.now() })
+            this.mainBranchCache.set(gitRoot, { branch, timestamp: Date.now() })
             return branch
           }
         } catch {
@@ -99,7 +143,7 @@ export class GitService {
 
       for (const name of commonNames) {
         if (branches.all.includes(name)) {
-          this.mainBranchCache.set(dir, { branch: name, timestamp: Date.now() })
+          this.mainBranchCache.set(gitRoot, { branch: name, timestamp: Date.now() })
           return name
         }
       }
@@ -107,7 +151,7 @@ export class GitService {
       // Return the current branch as fallback
       const branch = branches.current || null
       if (branch) {
-        this.mainBranchCache.set(dir, { branch, timestamp: Date.now() })
+        this.mainBranchCache.set(gitRoot, { branch, timestamp: Date.now() })
       }
       return branch
     } catch (error) {
@@ -213,6 +257,7 @@ export class GitService {
 
   /**
    * Get diff content for a specific file.
+   * Reads working file from git root since paths are repo-relative.
    */
   async getFileDiff(
     dir: string,
@@ -221,6 +266,9 @@ export class GitService {
   ): Promise<DiffContent | null> {
     const git = this.getGit(dir)
     if (!git) return null
+
+    const gitRoot = this.findGitRoot(dir)
+    if (!gitRoot) return null
 
     try {
       const base = baseBranch || (await this.getMainBranch(dir)) || 'HEAD'
@@ -233,11 +281,11 @@ export class GitService {
         // File might be new, no original content
       }
 
-      // Get modified content from working directory
+      // Get modified content from working directory (use git root since paths are repo-relative)
       let modified = ''
       try {
         const { readFile } = await import('fs/promises')
-        modified = await readFile(join(dir, filePath), 'utf-8')
+        modified = await readFile(join(gitRoot, filePath), 'utf-8')
       } catch {
         // File might be deleted
       }
@@ -260,12 +308,15 @@ export class GitService {
     const git = this.getGit(dir)
     if (!git) return null
 
+    const gitRoot = this.findGitRoot(dir)
+
     try {
       if (ref) {
         return await git.show([`${ref}:${filePath}`])
       } else {
         const { readFile } = await import('fs/promises')
-        return await readFile(join(dir, filePath), 'utf-8')
+        const readDir = gitRoot || dir
+        return await readFile(join(readDir, filePath), 'utf-8')
       }
     } catch (error) {
       console.error('Error getting file content:', error)

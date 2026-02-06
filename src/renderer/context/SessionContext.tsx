@@ -5,6 +5,7 @@ interface SessionContextType {
   sessions: Session[]
   activeSessionId: string | null
   sessionCwds: Map<string, string>  // Track current CWD per session
+  sessionGitRoots: Map<string, string | null>  // Track git root per session
   createSession: (cwd?: string) => Promise<void>
   closeSession: (id: string) => void
   setActiveSession: (id: string) => void
@@ -45,6 +46,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<Session[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [sessionCwds, setSessionCwds] = useState<Map<string, string>>(new Map())
+  const [sessionGitRoots, setSessionGitRoots] = useState<Map<string, string | null>>(new Map())
   const initialSessionCreated = useRef(false)
 
   const createSession = useCallback(async (cwd?: string) => {
@@ -118,6 +120,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       try {
         const nameUpdates: { id: string; name: string }[] = []
         const cwdUpdates = new Map<string, string>()
+        const gitRootUpdates = new Map<string, string | null>()
 
         for (const session of sessions) {
           try {
@@ -128,8 +131,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             // Track CWD
             cwdUpdates.set(session.id, cwd)
 
-            // Get current branch
-            const branch = await window.electronAPI.git.getCurrentBranch(cwd)
+            // Resolve git root first — skip branch lookup for non-git dirs
+            const root = await window.electronAPI.git.findGitRoot(cwd)
+            gitRootUpdates.set(session.id, root)
+
+            let branch: string | null = null
+            if (root) {
+              // Pass git root so SimpleGit instance is reused correctly
+              branch = await window.electronAPI.git.getCurrentBranch(root)
+            }
             const newName = getSessionName(branch, cwd)
 
             if (newName !== session.name) {
@@ -140,8 +150,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Update CWDs
+        // Update CWDs and git roots
         setSessionCwds(cwdUpdates)
+        setSessionGitRoots(gitRootUpdates)
 
         // Update names if changed
         if (nameUpdates.length > 0) {
@@ -180,6 +191,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         sessions,
         activeSessionId,
         sessionCwds,
+        sessionGitRoots,
         createSession,
         closeSession,
         setActiveSession,

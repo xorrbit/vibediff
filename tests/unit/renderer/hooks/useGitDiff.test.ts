@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { useGitDiff } from '@renderer/hooks/useGitDiff'
 import type { ChangedFile, DiffContent } from '@shared/types'
 
@@ -10,6 +10,7 @@ const mockGit = {
   getFileContent: vi.fn(),
   getMainBranch: vi.fn(),
   getCurrentBranch: vi.fn(),
+  findGitRoot: vi.fn(),
 }
 
 const mockFs = {
@@ -34,16 +35,12 @@ describe('useGitDiff', () => {
 
     mockGit.getChangedFiles.mockResolvedValue([])
     mockGit.getFileDiff.mockResolvedValue(null)
+    mockGit.findGitRoot.mockResolvedValue('/test/dir')
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
-
-  // Helper to flush all pending promises and timers
-  async function flushPromisesAndTimers() {
-    await vi.runAllTimersAsync()
-  }
 
   describe('initial loading', () => {
     it('starts with loading state', () => {
@@ -247,8 +244,10 @@ describe('useGitDiff', () => {
   })
 
   describe('cwd change', () => {
-    it('clears cache and selection when cwd changes', async () => {
-      mockGit.getChangedFiles.mockResolvedValue([{ path: 'file.ts', status: 'M' }])
+    it('reloads files from new git root when root changes', async () => {
+      // Start with /dir1 git root
+      mockGit.findGitRoot.mockResolvedValue('/dir1')
+      mockGit.getChangedFiles.mockResolvedValue([{ path: 'old-file.ts', status: 'M' }])
       mockGit.getFileDiff.mockResolvedValue({ original: 'old', modified: 'new' })
 
       const { result, rerender } = renderHook(
@@ -256,18 +255,65 @@ describe('useGitDiff', () => {
         { initialProps: { cwd: '/dir1' } }
       )
 
+      // Let findGitRoot resolve and initial load complete
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(2000)
+        await vi.advanceTimersByTimeAsync(2100)
       })
 
-      expect(result.current.selectedFile).toBe('file.ts')
+      expect(result.current.selectedFile).toBe('old-file.ts')
+      expect(mockGit.getChangedFiles).toHaveBeenCalledWith('/dir1')
+
+      // Now change to different git root with different files
+      mockGit.findGitRoot.mockResolvedValue('/dir2')
+      mockGit.getChangedFiles.mockResolvedValue([{ path: 'new-file.ts', status: 'A' }])
 
       // Change cwd
       rerender({ cwd: '/dir2' })
 
-      expect(result.current.selectedFile).toBeNull()
-      expect(result.current.diffContent).toBeNull()
-      expect(result.current.isLoading).toBe(true)
+      // Flush findGitRoot promise + effects + loadFiles
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100)
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      // Should have fetched files from the new git root
+      expect(mockGit.getChangedFiles).toHaveBeenCalledWith('/dir2')
+      // Should show files from new root (cache was cleared, new files loaded)
+      expect(result.current.files).toEqual([{ path: 'new-file.ts', status: 'A' }])
+      // Auto-selected first file from new root
+      expect(result.current.selectedFile).toBe('new-file.ts')
+    })
+
+    it('does NOT clear cache/selection when cd within same git root', async () => {
+      // Same git root for both /repo/src and /repo/lib
+      mockGit.findGitRoot.mockResolvedValue('/repo')
+      mockGit.getChangedFiles.mockResolvedValue([{ path: 'file.ts', status: 'M' }])
+      mockGit.getFileDiff.mockResolvedValue({ original: 'old', modified: 'new' })
+
+      const { result, rerender } = renderHook(
+        ({ cwd }) => useGitDiff({ sessionId: 'test-session', cwd }),
+        { initialProps: { cwd: '/repo/src' } }
+      )
+
+      // Let findGitRoot resolve and initial load
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2100)
+      })
+
+      expect(result.current.selectedFile).toBe('file.ts')
+
+      // cd to different subdir in same repo
+      rerender({ cwd: '/repo/lib' })
+
+      // Let findGitRoot resolve for new cwd (same root)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100)
+      })
+
+      // Selection should be preserved (same git root)
+      expect(result.current.selectedFile).toBe('file.ts')
     })
   })
 
@@ -335,12 +381,34 @@ describe('useGitDiff', () => {
   })
 
   describe('file watcher', () => {
-    it('starts file watcher on mount', () => {
+    it('starts file watcher with git root on mount', async () => {
+      mockGit.findGitRoot.mockResolvedValue('/git/root')
+
       renderHook(() =>
-        useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
+        useGitDiff({ sessionId: 'test-session', cwd: '/git/root/src' })
       )
 
-      expect(mockFs.watchStart).toHaveBeenCalledWith('test-session', '/test/dir')
+      // Let findGitRoot resolve
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      expect(mockFs.watchStart).toHaveBeenCalledWith('test-session', '/git/root')
+    })
+
+    it('starts file watcher with cwd when not in git repo', async () => {
+      mockGit.findGitRoot.mockResolvedValue(null)
+
+      renderHook(() =>
+        useGitDiff({ sessionId: 'test-session', cwd: '/not-a-repo' })
+      )
+
+      // Let findGitRoot resolve — watcher initially uses cwd since gitRoot is null
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+
+      expect(mockFs.watchStart).toHaveBeenCalledWith('test-session', '/not-a-repo')
     })
 
     it('stops file watcher on unmount', () => {
@@ -396,6 +464,25 @@ describe('useGitDiff', () => {
 
       // Should have made exactly one call after debounce
       expect(mockGit.getChangedFiles.mock.calls.length).toBe(callsAfterInit + 1)
+    })
+  })
+
+  describe('non-git directory', () => {
+    it('clears files when findGitRoot returns null', async () => {
+      mockGit.findGitRoot.mockResolvedValue(null)
+      mockGit.getChangedFiles.mockResolvedValue([{ path: 'file.ts', status: 'M' }])
+
+      const { result } = renderHook(() =>
+        useGitDiff({ sessionId: 'test-session', cwd: '/not-a-repo' })
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+
+      // Should not call getChangedFiles when not in a git repo
+      expect(result.current.files).toEqual([])
+      expect(result.current.isLoading).toBe(false)
     })
   })
 })

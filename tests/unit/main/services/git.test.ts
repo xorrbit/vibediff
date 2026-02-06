@@ -37,8 +37,79 @@ describe('GitService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     service = new GitService()
-    // Default: .git exists
-    mockExistsSync.mockReturnValue(true)
+    // Default: .git exists in /repo
+    mockExistsSync.mockImplementation((path: string) => {
+      return path === '/repo/.git'
+    })
+  })
+
+  describe('findGitRoot', () => {
+    it('returns the directory itself when .git exists there', () => {
+      mockExistsSync.mockImplementation((path: string) => path === '/repo/.git')
+
+      const result = service.findGitRoot('/repo')
+
+      expect(result).toBe('/repo')
+    })
+
+    it('walks up parent directories to find git root', () => {
+      mockExistsSync.mockImplementation((path: string) => path === '/repo/.git')
+
+      const result = service.findGitRoot('/repo/src/components')
+
+      expect(result).toBe('/repo')
+    })
+
+    it('returns null for non-git directories', () => {
+      mockExistsSync.mockReturnValue(false)
+
+      const result = service.findGitRoot('/not-a-repo')
+
+      expect(result).toBeNull()
+    })
+
+    it('caches and backfills all visited directories', () => {
+      mockExistsSync.mockImplementation((path: string) => path === '/repo/.git')
+
+      // First call walks up from /repo/src/deep
+      service.findGitRoot('/repo/src/deep')
+      mockExistsSync.mockClear()
+
+      // Second call to a sibling-like dir that was visited should use cache
+      const result = service.findGitRoot('/repo/src')
+
+      // Should not have called existsSync again (cached)
+      expect(mockExistsSync).not.toHaveBeenCalled()
+      expect(result).toBe('/repo')
+    })
+
+    it('caches negative results', () => {
+      mockExistsSync.mockReturnValue(false)
+
+      service.findGitRoot('/not-a-repo')
+      mockExistsSync.mockClear()
+
+      const result = service.findGitRoot('/not-a-repo')
+
+      expect(mockExistsSync).not.toHaveBeenCalled()
+      expect(result).toBeNull()
+    })
+
+    it('uses cached intermediate dir to shortcut walk-up', () => {
+      mockExistsSync.mockImplementation((path: string) => path === '/repo/.git')
+
+      // Prime cache for /repo/src
+      service.findGitRoot('/repo/src')
+      mockExistsSync.mockClear()
+
+      // Now lookup /repo/src/lib — walks to /repo/src/lib (uncached), checks .git there,
+      // then walks to /repo/src which IS cached, shortcutting the rest of the walk
+      const result = service.findGitRoot('/repo/src/lib')
+
+      expect(result).toBe('/repo')
+      // Only checked /repo/src/lib/.git before hitting the cached /repo/src
+      expect(mockExistsSync).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('getCurrentBranch', () => {
@@ -379,26 +450,40 @@ describe('GitService', () => {
   })
 
   describe('caching', () => {
-    it('caches git repo check', () => {
-      mockExistsSync.mockReturnValue(true)
+    it('caches git root lookup', () => {
+      mockExistsSync.mockImplementation((path: string) => path === '/repo/.git')
 
       // Access twice rapidly
-      service.getCurrentBranch('/repo')
-      service.getCurrentBranch('/repo')
+      service.findGitRoot('/repo')
+      service.findGitRoot('/repo')
 
-      // existsSync should only be called once (cached)
+      // existsSync should only be called once (cached on second call)
       expect(mockExistsSync).toHaveBeenCalledTimes(1)
     })
 
-    it('caches SimpleGit instance per directory', () => {
-      mockExistsSync.mockReturnValue(true)
+    it('caches SimpleGit instance per git root', () => {
+      // /repo1 and /repo1/src share same git root
+      mockExistsSync.mockImplementation((path: string) => path === '/repo1/.git')
 
       service.getCurrentBranch('/repo1')
+      service.getCurrentBranch('/repo1/src')
+
+      // simpleGit should be called once (both resolve to same git root /repo1)
+      expect(mockSimpleGit).toHaveBeenCalledTimes(1)
+      expect(mockSimpleGit).toHaveBeenCalledWith('/repo1')
+    })
+
+    it('creates separate SimpleGit instances for different repos', () => {
+      mockExistsSync.mockImplementation((path: string) =>
+        path === '/repo1/.git' || path === '/repo2/.git'
+      )
+
       service.getCurrentBranch('/repo1')
       service.getCurrentBranch('/repo2')
 
-      // simpleGit should be called once per unique dir
       expect(mockSimpleGit).toHaveBeenCalledTimes(2)
+      expect(mockSimpleGit).toHaveBeenCalledWith('/repo1')
+      expect(mockSimpleGit).toHaveBeenCalledWith('/repo2')
     })
   })
 })

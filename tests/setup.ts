@@ -38,6 +38,7 @@ const mockElectronAPI = {
     getFileContent: vi.fn(),
     getMainBranch: vi.fn(),
     getCurrentBranch: vi.fn().mockResolvedValue(null),
+    findGitRoot: vi.fn().mockResolvedValue(null),
   },
   fs: {
     selectDirectory: vi.fn(),

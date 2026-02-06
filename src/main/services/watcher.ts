@@ -7,6 +7,7 @@ type WatcherCallback = (event: FileChangeEvent) => void
 
 interface WatcherInstance {
   watcher: FSWatcher
+  watchedDir: string
   callback: WatcherCallback
   debounceTimer: NodeJS.Timeout | null
   pendingEvents: FileChangeEvent[]
@@ -32,6 +33,12 @@ export class FileWatcher {
    * Start watching a directory for changes.
    */
   watch(sessionId: string, dir: string, callback: WatcherCallback): void {
+    // Skip if existing watcher already covers the same directory
+    const existing = this.watchers.get(sessionId)
+    if (existing && existing.watchedDir === dir) {
+      return
+    }
+
     // Stop any existing watcher for this session
     this.unwatch(sessionId)
 
@@ -73,6 +80,7 @@ export class FileWatcher {
 
     const instance: WatcherInstance = {
       watcher,
+      watchedDir: dir,
       callback,
       debounceTimer: null,
       pendingEvents: [],
