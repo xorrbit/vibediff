@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, dialog, screen, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, screen, shell } from 'electron'
 import { execFile } from 'child_process'
 import { readFileSync } from 'fs'
 import { platform } from 'os'
@@ -158,6 +158,12 @@ function registerIpcHandlers() {
 
 app.whenReady().then(() => {
   console.log('App ready, initializing...')
+
+  // Set dock icon on macOS (without this, dev mode shows the default Electron icon)
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(nativeImage.createFromPath(join(__dirname, '../../assets/claudedidwhat.png')))
+  }
+
   createAppMenu()
   registerIpcHandlers()
   createWindow()
