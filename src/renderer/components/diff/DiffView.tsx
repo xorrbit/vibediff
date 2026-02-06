@@ -135,7 +135,7 @@ const DiffEditorContent = memo(function DiffEditorContent({
   )
 })
 
-const POOL_CAP = 5
+const POOL_CAP = 8
 
 interface PoolEntry {
   path: string

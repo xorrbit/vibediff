@@ -5,14 +5,9 @@ import type { ChangedFile, DiffContent } from '@shared/types'
 
 // Mock child hooks and components
 const mockUseGitDiff = vi.fn()
-const mockUseSessionContext = vi.fn()
 
 vi.mock('@renderer/hooks/useGitDiff', () => ({
   useGitDiff: (...args: any[]) => mockUseGitDiff(...args),
-}))
-
-vi.mock('@renderer/context/SessionContext', () => ({
-  useSessionContext: () => mockUseSessionContext(),
 }))
 
 vi.mock('@renderer/components/diff/FileList', () => ({
@@ -57,10 +52,6 @@ describe('DiffPanel', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSessionContext.mockReturnValue({
-      sessionCwds: new Map(),
-      sessionGitRoots: new Map(),
-    })
     mockUseGitDiff.mockReturnValue({ ...defaultGitDiff })
   })
 
@@ -118,12 +109,8 @@ describe('DiffPanel', () => {
     expect(screen.getByText('src/main.ts')).toBeInTheDocument()
   })
 
-  it('uses CWD from sessionCwds when available', () => {
-    const cwds = new Map([['s1', '/project/subdir']])
-    const gitRoots = new Map<string, string | null>([['s1', '/project']])
-    mockUseSessionContext.mockReturnValue({ sessionCwds: cwds, sessionGitRoots: gitRoots })
-
-    render(<DiffPanel sessionId="s1" cwd="/project" />)
+  it('passes cwd and gitRootHint props through to useGitDiff', () => {
+    render(<DiffPanel sessionId="s1" cwd="/project/subdir" gitRootHint="/project" />)
 
     expect(mockUseGitDiff).toHaveBeenCalledWith({
       sessionId: 's1',
@@ -132,12 +119,7 @@ describe('DiffPanel', () => {
     })
   })
 
-  it('falls back to initial cwd when sessionCwds has no entry', () => {
-    mockUseSessionContext.mockReturnValue({
-      sessionCwds: new Map(),
-      sessionGitRoots: new Map(),
-    })
-
+  it('defaults gitRootHint to undefined when not provided', () => {
     render(<DiffPanel sessionId="s1" cwd="/project" />)
 
     expect(mockUseGitDiff).toHaveBeenCalledWith({

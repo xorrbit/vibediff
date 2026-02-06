@@ -11,6 +11,8 @@ function AppContent() {
   const {
     sessions,
     activeSessionId,
+    sessionCwds,
+    sessionGitRoots,
     createSession,
     closeSession,
     setActiveSession,
@@ -136,7 +138,10 @@ function AppContent() {
                 ref={getRefCallback(session.id)}
                 sessionId={session.id}
                 cwd={session.cwd}
+                diffCwd={sessionCwds.get(session.id) || session.cwd}
+                gitRootHint={sessionGitRoots.get(session.id)}
                 isActive={session.id === activeSessionId}
+                onCloseSession={closeSession}
               />
             </div>
           ))

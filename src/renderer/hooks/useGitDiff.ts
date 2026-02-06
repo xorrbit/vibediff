@@ -21,6 +21,8 @@ interface UseGitDiffReturn {
 }
 
 const MAX_CACHE_SIZE = 50
+const REACTIVATION_REFRESH_DELAY_MS = 50
+const MIN_REACTIVATION_REFRESH_INTERVAL_MS = 2000
 
 export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseGitDiffOptions): UseGitDiffReturn {
   const [files, setFiles] = useState<ChangedFile[]>([])
@@ -34,6 +36,7 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
   const prevGitRootRef = useRef<string | null>(null)
   const initialLoadDone = useRef(false)
   const wasEnabledRef = useRef(enabled)
+  const lastSuccessfulLoadAtRef = useRef(0)
   const loadRequestId = useRef(0)
   const loadFilesRef = useRef<() => Promise<void>>()
   // Track enabled in a ref so watcher callbacks can check it without
@@ -113,6 +116,7 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
 
       setFiles(changedFiles)
       setError(null)
+      lastSuccessfulLoadAtRef.current = Date.now()
 
       // Auto-select first file if none selected (use ref to avoid dependency)
       if (!selectedFileRef.current && changedFiles.length > 0) {
@@ -213,9 +217,13 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
     wasEnabledRef.current = enabled
 
     if (enabled && !wasEnabled && initialLoadDone.current) {
+      const recentlyLoaded =
+        Date.now() - lastSuccessfulLoadAtRef.current < MIN_REACTIVATION_REFRESH_INTERVAL_MS
+      if (recentlyLoaded) return
+
       const timer = setTimeout(() => {
         loadFilesRef.current?.()
-      }, 50)
+      }, REACTIVATION_REFRESH_DELAY_MS)
       return () => clearTimeout(timer)
     }
   }, [enabled])
@@ -300,7 +308,7 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
       cancelled = true
       setIsDiffLoading(false)
     }
-  }, [enabled, gitRoot, cwd, selectedFile, getCacheEntry, setCacheEntry])
+  }, [enabled, gitRoot, cwd, selectedFile, setCacheEntry])
 
   // Watch for file changes and refresh git status reactively.
   // Lifecycle is tied to sessionId + gitRoot only — NOT to `enabled`.

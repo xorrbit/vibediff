@@ -43,7 +43,8 @@ export class GitService {
     const visited: string[] = []
     let current = normalizedDir
 
-    while (true) {
+    let reachedFilesystemRoot = false
+    while (!reachedFilesystemRoot) {
       // Check if this intermediate dir is already cached
       const cachedIntermediate = this.gitRootCache.get(current)
       if (cachedIntermediate && Date.now() - cachedIntermediate.timestamp < GitService.GIT_ROOT_CACHE_TTL) {
@@ -68,6 +69,7 @@ export class GitService {
 
       const parent = dirname(current)
       if (parent === current) {
+        reachedFilesystemRoot = true
         // Reached filesystem root without finding .git
         const now = Date.now()
         for (const dir of visited) {

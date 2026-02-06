@@ -58,7 +58,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [sessionGitRoots, setSessionGitRoots] = useState<Map<string, string | null>>(new Map())
   const initialSessionCreated = useRef(false)
   const activeSessionIdRef = useRef<string | null>(null)
+  const sessionsRef = useRef<Session[]>([])
   activeSessionIdRef.current = activeSessionId
+  sessionsRef.current = sessions
 
   const createSession = useCallback(async (cwd?: string) => {
     // Use provided cwd or default to home directory
@@ -133,8 +135,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const cwdUpdates = new Map<string, string>()
         const gitRootUpdates = new Map<string, string | null>()
 
+        const currentSessions = sessionsRef.current
+
         // Poll all sessions concurrently instead of sequentially
-        await Promise.all(sessions.map(async (session) => {
+        await Promise.all(currentSessions.map(async (session) => {
           try {
             // Get current cwd from terminal
             const currentCwd = await window.electronAPI.pty.getCwd(session.id)

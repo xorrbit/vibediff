@@ -47,6 +47,10 @@ export function useTerminal({ sessionId, cwd, onExit }: UseTerminalOptions): Use
   const xtermRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const initializedRef = useRef(false)
+  const onExitRef = useRef<(() => void) | undefined>(onExit)
+  useEffect(() => {
+    onExitRef.current = onExit
+  }, [onExit])
 
   // Fit terminal to container (only after initialization)
   const fitTerminal = useCallback(() => {
@@ -210,7 +214,7 @@ export function useTerminal({ sessionId, cwd, onExit }: UseTerminalOptions): Use
         }
       })
       unsubscribeExit = subscribePtyExit(sessionId, () => {
-        onExit?.()
+        onExitRef.current?.()
       })
 
       // Get initial dimensions
