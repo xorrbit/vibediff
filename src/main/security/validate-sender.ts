@@ -14,6 +14,7 @@ import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron'
  */
 export function validateIpcSender(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
   try {
+    if (!event.senderFrame) return false
     const url = event.senderFrame.url
 
     // Packaged and dev builds both serve renderer content from file://

@@ -17,15 +17,15 @@ const mockFitAddon = {
   proposeDimensions: vi.fn(() => ({ cols: 80, rows: 24 })),
 }
 
-vi.mock('xterm', () => ({
+vi.mock('@xterm/xterm', () => ({
   Terminal: vi.fn(() => mockTerminal),
 }))
 
-vi.mock('xterm-addon-fit', () => ({
+vi.mock('@xterm/addon-fit', () => ({
   FitAddon: vi.fn(() => mockFitAddon),
 }))
 
-vi.mock('xterm-addon-web-links', () => ({
+vi.mock('@xterm/addon-web-links', () => ({
   WebLinksAddon: vi.fn(),
 }))
 
@@ -36,7 +36,7 @@ vi.mock('@xterm/addon-webgl', () => ({
   })),
 }))
 
-vi.mock('xterm/css/xterm.css', () => ({}))
+vi.mock('@xterm/xterm/css/xterm.css', () => ({}))
 
 import { useTerminal } from '@renderer/hooks/useTerminal'
 

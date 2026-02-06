@@ -93,7 +93,6 @@ function createWindow() {
   // Load the app
   if (isDev) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173')
-    // DevTools can be opened manually with Ctrl+Shift+I or from View menu
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
@@ -224,7 +223,7 @@ app.whenReady().then(() => {
   // and onHeadersReceived applies to all responses which breaks the dev server.
   if (!isDev) {
     const csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self';"
-    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    session.defaultSession.webRequest.onHeadersReceived({ urls: ['<all_urls>'] }, (details, callback) => {
       callback({
         responseHeaders: {
           ...details.responseHeaders,

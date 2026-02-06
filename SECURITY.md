@@ -10,13 +10,13 @@ This document tracks security findings for claudedidwhat, an Electron-based term
 
 ### 1. Outdated Electron — HIGH
 
-**File:** `package.json` — `electron: ^28.0.0`
+**File:** `package.json` — `electron: ^40.0.0`
 
-Electron 28 is ~2 years old and has a known ASAR integrity bypass CVE (all versions < 35.7.5). The app is also missing years of Chromium security patches. This is the single most impactful upgrade.
+Electron 28 was ~2 years old and had a known ASAR integrity bypass CVE (all versions < 35.7.5). The app was also missing years of Chromium security patches.
 
 **Fix:** Upgrade to latest stable Electron. Major version jump — requires testing.
 
-**Status:** Open
+**Status:** Fixed — upgraded to Electron 40 (Chromium 144, Node 24); ASAR integrity bypass CVE resolved
 
 ---
 
@@ -81,13 +81,13 @@ The comment says "Required for node-pty" but node-pty runs in the main process, 
 
 ### 6. Vulnerable `electron-builder` Dependencies — MEDIUM (build-time only)
 
-**File:** `package.json` — `electron-builder: ^24.9.0`
+**File:** `package.json` — `electron-builder: ^26.0.0`
 
-`npm audit` reports vulnerabilities in transitive `tar` dependency (path traversal via insufficient sanitization, race condition via Unicode ligature collisions on macOS APFS, hardlink path traversal). These affect the build/packaging pipeline, not runtime.
+`npm audit` reported vulnerabilities in transitive `tar` dependency (path traversal via insufficient sanitization, race condition via Unicode ligature collisions on macOS APFS, hardlink path traversal). These affected the build/packaging pipeline, not runtime.
 
-**Fix:** Upgrade `electron-builder` to `^26.7.0`.
+**Fix:** Upgrade `electron-builder` to `^26.0.0`.
 
-**Status:** Open
+**Status:** Fixed — upgraded electron-builder to ^26.0.0
 
 ---
 
