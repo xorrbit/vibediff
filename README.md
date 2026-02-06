@@ -1,21 +1,27 @@
 # Claude Did What?!
 
-A multiplatform terminal emulator with an integrated code review/diff panel, designed for Claude Code workflows. Another artisanally hand-crafted AI slop project by Andrew Orr.
+AI slop masquerading as a terminal for the post-IDE era. Live diff viewer built in so you can see what your AI agent is doing to your codebase — without ever opening an editor.
+
+Shipped while the tests were still running by Andrew Orr.
 
 ![Claude Did What?! Screenshot](assets/claudedidwhat.png)
 
+## Why?
+
+IDEs are on borrowed time. The workflow now is: open Claude Code, tell it what you want, review the changes as they stream in, iterate until you're happy, then commit, push, and open a PR — all without leaving the terminal. Claude Did What?! is the missing piece: a terminal with a built-in diff viewer so you can review, approve, and ship entirely from one window. No VS Code, no JetBrains, no context switching.
+
 ## Features
 
-- **Split-pane layout**: Terminal on the left (50%), diff viewer on the right (50%), with resizable divider
-- **Smart tab naming**: Tabs show git branch name, or directory name when on main/master or outside a git repo
-- **Multi-tab support**: Manage multiple sessions with keyboard shortcuts, or double-click the tab bar to open a new tab
-- **Real-time git diff**: Automatically detects and displays file changes with floating overlay file list
-- **Monaco-powered diff view**: Side-by-side comparison with full syntax highlighting, switchable between Automatic, Unified, and Split layouts
-- **VSCode syntax grammars**: Automatically picks up TextMate grammars from your installed VSCode extensions — if VSCode can highlight it, so can your diffs
+- **Split-pane layout**: Terminal on the left, diff viewer on the right, with a resizable divider — everything in one window
+- **Real-time git diff**: File changes appear automatically as they happen, no manual refresh needed
+- **Monaco-powered diff view**: Full syntax highlighting with Automatic, Unified, and Split view modes
+- **VSCode syntax grammars**: Picks up TextMate grammars from your installed VSCode extensions — if VSCode can highlight it, so can your diffs
+- **Instant CWD detection**: Shell integration (bash/zsh/fish) reports directory changes instantly via OSC 7, no polling delay
+- **Smart tab naming**: Tabs show your git branch name, or directory name when on main/master
+- **Multi-tab support**: Multiple sessions with keyboard shortcuts, or double-click the tab bar to open a new tab
 - **Terminal context menu**: Right-click for Copy, Paste, Select All, and Clear
 - **WebGL-accelerated terminal**: Hardware-accelerated rendering for smooth scrolling and output
-- **Cross-platform**: Works on macOS, Windows, and Linux
-- **Streamlined diff view**: Review AI changes faster so you can pretend you read them
+- **Cross-platform**: macOS, Windows, and Linux
 
 ## Installation
 
@@ -63,22 +69,22 @@ Download from the [Releases](https://github.com/xorrbit/claudedidwhat/releases) 
 ### Diff Panel
 
 The diff panel on the right side features:
-- **Floating file list**: Changed files overlay floats over the terminal with collapsible panel, resizable horizontally and vertically via drag handles, color-coded status indicators (Added, Modified, Deleted)
-- **File path header**: Full repo-relative path displayed at the top of the diff view with one-click copy buttons for the full path or just the filename
-- **Diff viewer**: Click any file to view its diff with syntax highlighting — toggle between Automatic, Unified, and Split view modes
+- **Floating file list**: Changed files float over the terminal in a collapsible, resizable overlay with color-coded status indicators (Added, Modified, Deleted)
+- **File path header**: Repo-relative path with one-click copy buttons for the full path or just the filename
+- **Diff viewer**: Click any file to view its diff — toggle between Automatic, Unified, and Split view modes
 - **Branch-only changes**: Only shows files changed in your branch, not unrelated changes from main/master
-- **Instant file switching**: Diff content is cached for fast navigation between files
+- **Instant file switching**: Diff content is cached so switching between files feels instant
 
-Changes are detected in real-time as you edit files. The tab name automatically updates to reflect your current git branch or directory.
+Changes are detected in real-time as files are edited. The tab name automatically updates to reflect your current git branch or directory.
 
 ### Performance
 
 Optimized for large repositories and multi-tab workflows:
 
-- **Event-driven updates**: Uses native file system events (inotify/FSEvents) instead of polling, so git status only refreshes when files actually change. On WSL2, automatically falls back to lightweight polling to avoid blocking input
+- **Event-driven updates**: Native file system events (inotify/FSEvents) instead of polling — git status only refreshes when files actually change. Falls back to lightweight polling on WSL2
+- **Instant CWD tracking**: Shell integration emits OSC 7 escape sequences on every prompt, so `cd` is detected in milliseconds instead of waiting for a 5-second poll
 - **LRU diff cache**: Recently viewed diffs are cached for instant file switching, with automatic eviction to bound memory usage
 - **Visibility-aware**: Background tabs pause file watching and git operations until focused
-- **Centralized polling**: Single source for terminal CWD tracking across all tabs, reduced frequency with caching
 - **Cached git instances**: SimpleGit instances and repo checks are reused instead of recreated per operation
 - **Async I/O**: System calls (like macOS `lsof`) run asynchronously to avoid blocking the main thread
 - **Memoized components**: React components use `memo` and CSS-based hover states to minimize re-renders
@@ -92,7 +98,7 @@ Optimized for large repositories and multi-tab workflows:
 | Language | TypeScript |
 | UI | React |
 | Styling | Tailwind CSS + JetBrains Mono |
-| Terminal | xterm.js |
+| Terminal | xterm.js (WebGL) |
 | PTY | node-pty |
 | Diff View | Monaco Editor + vscode-textmate |
 | Git | simple-git |
