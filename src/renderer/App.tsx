@@ -86,25 +86,6 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleEscape)
   }, [showHelp])
 
-  // Handle menu events
-  useEffect(() => {
-    const unsubNewTab = window.electronAPI.menu.onNewTab(() => {
-      createSession()
-    })
-    const unsubCloseTab = window.electronAPI.menu.onCloseTab(() => {
-      handleCloseTab()
-    })
-    const unsubShowHelp = window.electronAPI.menu.onShowHelp(() => {
-      setShowHelp(true)
-    })
-
-    return () => {
-      unsubNewTab()
-      unsubCloseTab()
-      unsubShowHelp()
-    }
-  }, [createSession, handleCloseTab])
-
   useKeyboardShortcuts({
     onNewTab: createSession,
     onCloseTab: handleCloseTab,

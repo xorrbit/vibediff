@@ -4,7 +4,7 @@ import { FS_CHANNELS } from '@shared/types'
 import { FileWatcher } from '../services/watcher'
 import { sendToRenderer } from '../index'
 
-const fileWatcher = new FileWatcher()
+export const fileWatcher = new FileWatcher()
 
 export function registerFsHandlers(ipcMain: IpcMain) {
   ipcMain.handle(FS_CHANNELS.WATCH_START, async (_event, sessionId: string, dir: string) => {

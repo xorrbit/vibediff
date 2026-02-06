@@ -119,11 +119,6 @@ export interface ElectronAPI {
     selectDirectory: () => Promise<string | null>
     getHomeDir: () => Promise<string>
   }
-  menu: {
-    onNewTab: (callback: () => void) => () => void
-    onCloseTab: (callback: () => void) => () => void
-    onShowHelp: (callback: () => void) => () => void
-  }
   grammar: {
     scan: () => Promise<GrammarScanResult>
     getOnigWasm: () => Promise<Uint8Array | null>

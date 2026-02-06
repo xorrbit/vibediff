@@ -89,24 +89,6 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke(FS_CHANNELS.GET_HOME_DIR),
   },
 
-  menu: {
-    onNewTab: (callback: () => void) => {
-      const listener = () => callback()
-      ipcRenderer.on('menu:newTab', listener)
-      return () => ipcRenderer.removeListener('menu:newTab', listener)
-    },
-    onCloseTab: (callback: () => void) => {
-      const listener = () => callback()
-      ipcRenderer.on('menu:closeTab', listener)
-      return () => ipcRenderer.removeListener('menu:closeTab', listener)
-    },
-    onShowHelp: (callback: () => void) => {
-      const listener = () => callback()
-      ipcRenderer.on('menu:showHelp', listener)
-      return () => ipcRenderer.removeListener('menu:showHelp', listener)
-    },
-  },
-
   grammar: {
     scan: () => ipcRenderer.invoke(GRAMMAR_CHANNELS.SCAN),
     getOnigWasm: () => ipcRenderer.invoke(GRAMMAR_CHANNELS.GET_ONIG_WASM),

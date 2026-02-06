@@ -8,9 +8,9 @@ if (process.env.NODE_ENV === 'development' || process.env.VITE_DEV_SERVER_URL) {
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
 }
 import { join } from 'path'
-import { registerPtyHandlers } from './ipc/pty'
+import { registerPtyHandlers, ptyManager } from './ipc/pty'
 import { registerGitHandlers } from './ipc/git'
-import { registerFsHandlers } from './ipc/fs'
+import { registerFsHandlers, fileWatcher } from './ipc/fs'
 import { registerGrammarHandlers } from './ipc/grammar'
 import { TERMINAL_MENU_CHANNELS } from '@shared/types'
 import { createAppMenu } from './menu'
@@ -192,6 +192,11 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  ptyManager.killAll()
+  fileWatcher.unwatchAll()
 })
 
 // Send events to renderer

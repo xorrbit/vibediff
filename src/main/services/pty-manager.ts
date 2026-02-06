@@ -82,6 +82,7 @@ export class PtyManager {
     ptyProcess.onExit(({ exitCode }) => {
       instance.callbacks.onExit(exitCode)
       this.instances.delete(sessionId)
+      this.cwdCache.delete(sessionId)
     })
 
     this.instances.set(sessionId, instance)
@@ -115,6 +116,7 @@ export class PtyManager {
     if (instance) {
       instance.pty.kill()
       this.instances.delete(sessionId)
+      this.cwdCache.delete(sessionId)
     }
   }
 
@@ -170,6 +172,10 @@ export class PtyManager {
         return null
       }
     }
+
+    // Windows: no reliable way to query another process's CWD without native
+    // code (NtQueryInformationProcess) or shell integration escape sequences.
+    // Returns null, so callers fall back to the initial session cwd.
 
     // Cache the result
     if (cwd) {

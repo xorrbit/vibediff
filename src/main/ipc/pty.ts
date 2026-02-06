@@ -3,7 +3,7 @@ import { PTY_CHANNELS, PtySpawnOptions, PtyResizeOptions } from '@shared/types'
 import { PtyManager } from '../services/pty-manager'
 import { sendToRenderer } from '../index'
 
-const ptyManager = new PtyManager()
+export const ptyManager = new PtyManager()
 
 export function registerPtyHandlers(ipcMain: IpcMain) {
   ipcMain.handle(PTY_CHANNELS.SPAWN, async (_event, options: PtySpawnOptions) => {

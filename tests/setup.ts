@@ -58,11 +58,6 @@ const mockElectronAPI = {
     onFileChange: vi.fn(() => () => {}),
     getHomeDir: vi.fn().mockResolvedValue('/home/test'),
   },
-  menu: {
-    onNewTab: vi.fn(() => () => {}),
-    onCloseTab: vi.fn(() => () => {}),
-    onShowHelp: vi.fn(() => () => {}),
-  },
   grammar: {
     scan: vi.fn().mockResolvedValue({ grammars: [], errors: [] }),
     getOnigWasm: vi.fn().mockResolvedValue(null),
