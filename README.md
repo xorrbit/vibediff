@@ -67,107 +67,6 @@ Download from the [Releases](https://github.com/xorrbit/claudedidwhat/releases) 
 | `Ctrl+1-9` / `Cmd+1-9` | Switch to tab by number |
 | `Ctrl+?` / `Cmd+?` | Show help overlay |
 
-### Automation REST API (Optional, Dangerous)
-
-This app includes an optional local REST API that can open a new terminal tab and run arbitrary bootstrap commands. This is designed to allow automation or another AI agent to prepare tabs for you by doing things like adding a new git worktree for an arbitrary branch, copying some files over and then launching claude.
-
-It is intentionally treated as a dangerous feature:
-- disabled by default
-- localhost only (`127.0.0.1`)
-- random port + bearer token
-- strict input validation and rate limiting
-
-#### 1. Enable It
-
-Edit this config file:
-
-`<userData>/automation/config.json`
-
-Typical `userData` paths:
-- Linux: `~/.config/claudedidwhat`
-- macOS: `~/Library/Application Support/claudedidwhat`
-- Windows: `%APPDATA%/claudedidwhat`
-
-Example config:
-
-```json
-{
-  "version": 1,
-  "enabled": true,
-  "allowedRoots": ["/home/you/code"],
-  "maxCommands": 25,
-  "maxCommandLength": 4096,
-  "maxRequestBytes": 262144,
-  "requestTimeoutMs": 20000,
-  "rateLimitPerMinute": 60
-}
-```
-
-`cwd` in API requests must be inside one of `allowedRoots`.
-
-#### 2. Get Runtime Credentials
-
-When enabled, the app writes:
-
-`<userData>/automation/credentials.json`
-
-Example:
-
-```json
-{
-  "version": 1,
-  "host": "127.0.0.1",
-  "port": 48321,
-  "token": "<random-token>",
-  "createdAt": "2026-02-07T00:00:00.000Z"
-}
-```
-
-The port/token are generated per app launch.
-
-#### 3. Send a Bootstrap Request
-
-Endpoint:
-
-`POST /v1/terminal/bootstrap`
-
-Required headers:
-- `Authorization: Bearer <token>`
-- `Content-Type: application/json`
-- `X-CDW-Client: <your-client-name>`
-
-Request body:
-
-```json
-{
-  "cwd": "/absolute/path/to/project",
-  "commands": [
-    "git status",
-    "npm test"
-  ]
-}
-```
-
-Example `curl`:
-
-```bash
-curl -X POST "http://127.0.0.1:48321/v1/terminal/bootstrap" \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -H "X-CDW-Client: my-script" \
-  -d '{"cwd":"/home/you/code/myrepo","commands":["git status","npm test"]}'
-```
-
-Success response:
-
-```json
-{
-  "sessionId": "session-..."
-}
-```
-
-When enabled, the tab bar shows a small `API` pill indicator.
-
 ### Diff Panel
 
 The diff panel on the right side features:
@@ -231,6 +130,107 @@ npm run format
 
 See [SECURITY.md](SECURITY.md) for the app's security architecture, threat model, and audit history.
 
+## Automation REST API (Optional, Dangerous)
+
+This app includes an optional local REST API that can open a new terminal tab and run arbitrary bootstrap commands. This is designed to allow automation or another AI agent to prepare tabs for you by doing things like adding a new git worktree for an arbitrary branch, copying some files over and then launching claude.
+
+It is intentionally treated as a dangerous feature:
+- disabled by default
+- localhost only (`127.0.0.1`)
+- random port + bearer token
+- strict input validation and rate limiting
+
+### 1. Enable It
+
+Edit this config file:
+
+`<userData>/automation/config.json`
+
+Typical `userData` paths:
+- Linux: `~/.config/claudedidwhat`
+- macOS: `~/Library/Application Support/claudedidwhat`
+- Windows: `%APPDATA%/claudedidwhat`
+
+Example config:
+
+```json
+{
+  "version": 1,
+  "enabled": true,
+  "allowedRoots": ["/home/you/code"],
+  "maxCommands": 25,
+  "maxCommandLength": 4096,
+  "maxRequestBytes": 262144,
+  "requestTimeoutMs": 20000,
+  "rateLimitPerMinute": 60
+}
+```
+
+`cwd` in API requests must be inside one of `allowedRoots`.
+
+### 2. Get Runtime Credentials
+
+When enabled, the app writes:
+
+`<userData>/automation/credentials.json`
+
+Example:
+
+```json
+{
+  "version": 1,
+  "host": "127.0.0.1",
+  "port": 48321,
+  "token": "<random-token>",
+  "createdAt": "2026-02-07T00:00:00.000Z"
+}
+```
+
+The port/token are generated per app launch.
+
+### 3. Send a Bootstrap Request
+
+Endpoint:
+
+`POST /v1/terminal/bootstrap`
+
+Required headers:
+- `Authorization: Bearer <token>`
+- `Content-Type: application/json`
+- `X-CDW-Client: <your-client-name>`
+
+Request body:
+
+```json
+{
+  "cwd": "/absolute/path/to/project",
+  "commands": [
+    "git status",
+    "npm test"
+  ]
+}
+```
+
+Example `curl`:
+
+```bash
+curl -X POST "http://127.0.0.1:48321/v1/terminal/bootstrap" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -H "X-CDW-Client: my-script" \
+  -d '{"cwd":"/home/you/code/myrepo","commands":["git status","npm test"]}'
+```
+
+Success response:
+
+```json
+{
+  "sessionId": "session-..."
+}
+```
+
+When enabled, the tab bar shows a small `API` pill indicator.
+
 ## License
 
-MIT
+[MIT](LICENSE.md)
