@@ -83,6 +83,51 @@ describe('useInputWaiting', () => {
     expect(result.current.has('s2')).toBe(true)
   })
 
+  it('detects prompts split across multiple output chunks using recent line tail', async () => {
+    window.electronAPI.pty.getForegroundProcess.mockResolvedValue('claude')
+    const sessions = [
+      { id: 's1', cwd: '/repo/one', name: 'one' },
+      { id: 's2', cwd: '/repo/two', name: 'two' },
+    ]
+
+    const { result } = renderHook(() => useInputWaiting(sessions, 's1'))
+
+    await act(async () => {
+      await flushAsync()
+    })
+
+    await act(async () => {
+      handlers.get('s2')?.('What would you like to')
+      handlers.get('s2')?.(' do?\nChoose an option:')
+      vi.advanceTimersByTime(1500)
+      await flushAsync()
+    })
+
+    expect(result.current.has('s2')).toBe(true)
+  })
+
+  it('does not treat mixed thinking/progress output as an immediate waiting prompt', async () => {
+    window.electronAPI.pty.getForegroundProcess.mockResolvedValue('codex')
+    const sessions = [
+      { id: 's1', cwd: '/repo/one', name: 'one' },
+      { id: 's2', cwd: '/repo/two', name: 'two' },
+    ]
+
+    const { result } = renderHook(() => useInputWaiting(sessions, 's1'))
+
+    await act(async () => {
+      await flushAsync()
+    })
+
+    await act(async () => {
+      handlers.get('s2')?.('Thinking... analyzing project 45% - what would you like to do?')
+      vi.advanceTimersByTime(1500)
+      await flushAsync()
+    })
+
+    expect(result.current.has('s2')).toBe(false)
+  })
+
   it('does not mark waiting during short idle without a prompt hint', async () => {
     window.electronAPI.pty.getForegroundProcess.mockResolvedValue('codex')
     const sessions = [
@@ -147,6 +192,42 @@ describe('useInputWaiting', () => {
       rerender({ activeSessionId: 's2' })
       await Promise.resolve()
       await Promise.resolve()
+    })
+    expect(result.current.has('s2')).toBe(false)
+  })
+
+  it('uses clear hysteresis to avoid flicker when waiting signal briefly drops', async () => {
+    let currentProcess: string | null = 'claude'
+    window.electronAPI.pty.getForegroundProcess.mockImplementation(async () => currentProcess)
+    const sessions = [
+      { id: 's1', cwd: '/repo/one', name: 'one' },
+      { id: 's2', cwd: '/repo/two', name: 'two' },
+    ]
+
+    const { result } = renderHook(() => useInputWaiting(sessions, 's1'))
+
+    await act(async () => {
+      await flushAsync()
+    })
+
+    await act(async () => {
+      handlers.get('s2')?.('Press enter to continue')
+      vi.advanceTimersByTime(1500)
+      await flushAsync()
+    })
+    expect(result.current.has('s2')).toBe(true)
+
+    currentProcess = null
+
+    await act(async () => {
+      vi.advanceTimersByTime(1500)
+      await flushAsync()
+    })
+    expect(result.current.has('s2')).toBe(true)
+
+    await act(async () => {
+      vi.advanceTimersByTime(1500)
+      await flushAsync()
     })
     expect(result.current.has('s2')).toBe(false)
   })
