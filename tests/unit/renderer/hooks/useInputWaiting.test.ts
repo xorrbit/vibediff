@@ -3,25 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useInputWaiting } from '@renderer/hooks/useInputWaiting'
 
 const handlers = new Map<string, (data: string) => void>()
-const aiStopHandlers = new Map<string, () => void>()
 const mockSubscribePtyData = vi.fn((sessionId: string, handler: (data: string) => void) => {
   handlers.set(sessionId, handler)
   return () => {
     handlers.delete(sessionId)
   }
 })
-const mockSubscribePtyAiStop = vi.fn((sessionId: string, handler: () => void) => {
-  aiStopHandlers.set(sessionId, handler)
-  return () => {
-    aiStopHandlers.delete(sessionId)
-  }
-})
 
 vi.mock('@renderer/lib/eventDispatchers', () => ({
   subscribePtyData: (sessionId: string, handler: (data: string) => void) =>
     mockSubscribePtyData(sessionId, handler),
-  subscribePtyAiStop: (sessionId: string, handler: () => void) =>
-    mockSubscribePtyAiStop(sessionId, handler),
 }))
 
 describe('useInputWaiting', () => {
@@ -33,7 +24,6 @@ describe('useInputWaiting', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     handlers.clear()
-    aiStopHandlers.clear()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
     window.electronAPI.pty.getForegroundProcess.mockResolvedValue(null)
@@ -242,40 +232,4 @@ describe('useInputWaiting', () => {
     expect(result.current.has('s2')).toBe(false)
   })
 
-  it('clears waiting immediately and suppresses fallback after a Claude stop hook signal', async () => {
-    window.electronAPI.pty.getForegroundProcess.mockResolvedValue('claude')
-    const sessions = [
-      { id: 's1', cwd: '/repo/one', name: 'one' },
-      { id: 's2', cwd: '/repo/two', name: 'two' },
-    ]
-
-    const { result } = renderHook(() => useInputWaiting(sessions, 's1'))
-
-    await act(async () => {
-      for (let index = 0; index < 6; index += 1) {
-        vi.advanceTimersByTime(1500)
-        await flushAsync()
-      }
-    })
-    expect(result.current.has('s2')).toBe(true)
-
-    await act(async () => {
-      aiStopHandlers.get('s2')?.()
-      vi.advanceTimersByTime(1500)
-      await flushAsync()
-    })
-    expect(result.current.has('s2')).toBe(false)
-
-    await act(async () => {
-      vi.advanceTimersByTime(3000)
-      await flushAsync()
-    })
-    expect(result.current.has('s2')).toBe(false)
-
-    await act(async () => {
-      vi.advanceTimersByTime(3000)
-      await flushAsync()
-    })
-    expect(result.current.has('s2')).toBe(true)
-  })
 })

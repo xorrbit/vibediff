@@ -117,14 +117,12 @@ describe('preload electronAPI bridge', () => {
     const ptyDataCb = vi.fn()
     const ptyExitCb = vi.fn()
     const cwdCb = vi.fn()
-    const aiStopCb = vi.fn()
     const fileChangedCb = vi.fn()
     const contextMenuCb = vi.fn()
 
     let dataListener: (...args: any[]) => void = () => {}
     let exitListener: (...args: any[]) => void = () => {}
     let cwdListener: (...args: any[]) => void = () => {}
-    let aiStopListener: (...args: any[]) => void = () => {}
     let fileListener: (...args: any[]) => void = () => {}
     let menuListener: (...args: any[]) => void = () => {}
 
@@ -132,7 +130,6 @@ describe('preload electronAPI bridge', () => {
       if (channel === PTY_CHANNELS.DATA) dataListener = listener
       if (channel === PTY_CHANNELS.EXIT) exitListener = listener
       if (channel === PTY_CHANNELS.CWD_CHANGED) cwdListener = listener
-      if (channel === PTY_CHANNELS.AI_STOP) aiStopListener = listener
       if (channel === FS_CHANNELS.FILE_CHANGED) fileListener = listener
       if (channel === TERMINAL_MENU_CHANNELS.ACTION) menuListener = listener
     })
@@ -140,35 +137,30 @@ describe('preload electronAPI bridge', () => {
     const unsubscribeData = api.pty.onData(ptyDataCb)
     const unsubscribeExit = api.pty.onExit(ptyExitCb)
     const unsubscribeCwd = api.pty.onCwdChanged(cwdCb)
-    const unsubscribeAiStop = api.pty.onAiStop(aiStopCb)
     const unsubscribeFile = api.fs.onFileChanged(fileChangedCb)
     const unsubscribeMenu = api.terminal.onContextMenuAction(contextMenuCb)
 
     dataListener({}, 's1', 'output')
     exitListener({}, 's1', 130)
     cwdListener({}, 's1', '/repo/new')
-    aiStopListener({}, 's1')
     fileListener({}, { sessionId: 's1', type: 'change', path: 'src/a.ts' })
     menuListener({}, 'copy')
 
     expect(ptyDataCb).toHaveBeenCalledWith('s1', 'output')
     expect(ptyExitCb).toHaveBeenCalledWith('s1', 130)
     expect(cwdCb).toHaveBeenCalledWith('s1', '/repo/new')
-    expect(aiStopCb).toHaveBeenCalledWith('s1')
     expect(fileChangedCb).toHaveBeenCalledWith({ sessionId: 's1', type: 'change', path: 'src/a.ts' })
     expect(contextMenuCb).toHaveBeenCalledWith('copy')
 
     unsubscribeData()
     unsubscribeExit()
     unsubscribeCwd()
-    unsubscribeAiStop()
     unsubscribeFile()
     unsubscribeMenu()
 
     expect(mockRemoveListener).toHaveBeenCalledWith(PTY_CHANNELS.DATA, dataListener)
     expect(mockRemoveListener).toHaveBeenCalledWith(PTY_CHANNELS.EXIT, exitListener)
     expect(mockRemoveListener).toHaveBeenCalledWith(PTY_CHANNELS.CWD_CHANGED, cwdListener)
-    expect(mockRemoveListener).toHaveBeenCalledWith(PTY_CHANNELS.AI_STOP, aiStopListener)
     expect(mockRemoveListener).toHaveBeenCalledWith(FS_CHANNELS.FILE_CHANGED, fileListener)
     expect(mockRemoveListener).toHaveBeenCalledWith(TERMINAL_MENU_CHANNELS.ACTION, menuListener)
   })

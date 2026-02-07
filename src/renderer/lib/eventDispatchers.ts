@@ -2,17 +2,14 @@ import { FileChangeEvent } from '@shared/types'
 
 type PtyDataHandler = (data: string) => void
 type PtyExitHandler = (code: number) => void
-type PtyAiStopHandler = () => void
 type FileChangeHandler = (event: FileChangeEvent) => void
 
 const ptyDataHandlers = new Map<string, Set<PtyDataHandler>>()
 const ptyExitHandlers = new Map<string, Set<PtyExitHandler>>()
-const ptyAiStopHandlers = new Map<string, Set<PtyAiStopHandler>>()
 const fileChangeHandlers = new Map<string, Set<FileChangeHandler>>()
 
 let unsubscribePtyData: (() => void) | null = null
 let unsubscribePtyExit: (() => void) | null = null
-let unsubscribePtyAiStop: (() => void) | null = null
 let unsubscribeFileChanged: (() => void) | null = null
 
 function getOrCreateSet<T>(map: Map<string, Set<T>>, sessionId: string): Set<T> {
@@ -54,17 +51,6 @@ function installPtyExitListener(): void {
   })
 }
 
-function installPtyAiStopListener(): void {
-  if (unsubscribePtyAiStop) return
-  unsubscribePtyAiStop = window.electronAPI.pty.onAiStop((sessionId) => {
-    const handlers = ptyAiStopHandlers.get(sessionId)
-    if (!handlers || handlers.size === 0) return
-    for (const handler of handlers) {
-      handler()
-    }
-  })
-}
-
 function installFileChangedListener(): void {
   if (unsubscribeFileChanged) return
   unsubscribeFileChanged = window.electronAPI.fs.onFileChanged((event) => {
@@ -86,12 +72,6 @@ function maybeCleanupPtyExitListener(): void {
   if (ptyExitHandlers.size > 0 || !unsubscribePtyExit) return
   unsubscribePtyExit()
   unsubscribePtyExit = null
-}
-
-function maybeCleanupPtyAiStopListener(): void {
-  if (ptyAiStopHandlers.size > 0 || !unsubscribePtyAiStop) return
-  unsubscribePtyAiStop()
-  unsubscribePtyAiStop = null
 }
 
 function maybeCleanupFileChangedListener(): void {
@@ -117,16 +97,6 @@ export function subscribePtyExit(sessionId: string, handler: PtyExitHandler): ()
   return () => {
     removeHandler(ptyExitHandlers, sessionId, handler)
     maybeCleanupPtyExitListener()
-  }
-}
-
-export function subscribePtyAiStop(sessionId: string, handler: PtyAiStopHandler): () => void {
-  installPtyAiStopListener()
-  getOrCreateSet(ptyAiStopHandlers, sessionId).add(handler)
-
-  return () => {
-    removeHandler(ptyAiStopHandlers, sessionId, handler)
-    maybeCleanupPtyAiStopListener()
   }
 }
 

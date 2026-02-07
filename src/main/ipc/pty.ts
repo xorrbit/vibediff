@@ -32,9 +32,6 @@ export function registerPtyHandlers(ipcMain: IpcMain) {
         onCwdChanged: (cwd) => {
           sendToRenderer(PTY_CHANNELS.CWD_CHANGED, sessionId, cwd)
         },
-        onAiStop: () => {
-          sendToRenderer(PTY_CHANNELS.AI_STOP, sessionId)
-        },
       })
     } catch (err) {
       console.error('Failed to spawn PTY:', err)

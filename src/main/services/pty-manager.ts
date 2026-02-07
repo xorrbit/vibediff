@@ -8,11 +8,8 @@ import {
   mkdirSync,
   writeFileSync,
   readFileSync,
-  watch,
-  rmSync,
-  FSWatcher,
 } from 'fs'
-import { basename, join, resolve, relative, isAbsolute } from 'path'
+import { basename, join } from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { detectShell, getShellName } from './shell'
@@ -26,7 +23,6 @@ interface PtyCallbacks {
   onData: (data: string) => void
   onExit: (code: number) => void
   onCwdChanged?: (cwd: string) => void
-  onAiStop?: () => void
 }
 
 interface PtyInstance {
@@ -126,32 +122,6 @@ function getIntegrationDir(): string {
   return join(app.getPath('userData'), 'shell-integration')
 }
 
-function getHookEventsDir(): string {
-  return join(app.getPath('userData'), 'hook-events')
-}
-
-function getClaudeStopHookScriptPath(): string {
-  return join(getIntegrationDir(), 'claude-stop-hook.sh')
-}
-
-function getClaudeStopHookPowerShellScriptPath(): string {
-  return join(getIntegrationDir(), 'claude-stop-hook.ps1')
-}
-
-function isPathWithinDirectory(directoryPath: string, candidatePath: string): boolean {
-  const relativePath = relative(directoryPath, candidatePath)
-  return relativePath.length > 0 && !relativePath.startsWith('..') && !isAbsolute(relativePath)
-}
-
-function resolveStopHookFilePath(sessionId: string): string {
-  const hookEventsDir = resolve(getHookEventsDir())
-  const stopHookPath = resolve(hookEventsDir, `${sessionId}.stop`)
-  if (!isPathWithinDirectory(hookEventsDir, stopHookPath)) {
-    throw new Error('Invalid stop hook path outside hook-events directory')
-  }
-  return stopHookPath
-}
-
 function ensureShellIntegrationScripts(): void {
   const dir = getIntegrationDir()
   mkdirSync(dir, { recursive: true, mode: 0o700 })
@@ -190,36 +160,6 @@ fi
 `
   writeFileSync(join(dir, '.zshrc'), zshRc, { mode: 0o600 })
 
-  // Optional helper users can wire into Claude's Stop hook.
-  const stopHookScript = `#!/usr/bin/env bash
-set -eu
-if [ -z "\${CDW_STOP_HOOK_FILE:-}" ]; then
-  exit 0
-fi
-mkdir -p "$(dirname "$CDW_STOP_HOOK_FILE")"
-: > "$CDW_STOP_HOOK_FILE"
-`
-  writeFileSync(getClaudeStopHookScriptPath(), stopHookScript, { mode: 0o700 })
-
-  const stopHookPowerShellScript = `$ErrorActionPreference = "Stop"
-if ([string]::IsNullOrWhiteSpace($env:CDW_STOP_HOOK_FILE)) {
-  exit 0
-}
-$hookFile = $env:CDW_STOP_HOOK_FILE
-$hookDir = Split-Path -Parent $hookFile
-if (-not [string]::IsNullOrWhiteSpace($hookDir)) {
-  New-Item -ItemType Directory -Path $hookDir -Force | Out-Null
-}
-Set-Content -Path $hookFile -Value "" -NoNewline
-`
-  writeFileSync(getClaudeStopHookPowerShellScriptPath(), stopHookPowerShellScript, { mode: 0o600 })
-
-  const hookEventsDir = getHookEventsDir()
-  mkdirSync(hookEventsDir, { recursive: true, mode: 0o700 })
-  const hookEventsStat = lstatSync(hookEventsDir)
-  if (hookEventsStat.isSymbolicLink()) {
-    throw new Error(`Hook events directory is a symlink — refusing to use: ${hookEventsDir}`)
-  }
 }
 
 function getShellIntegration(shellPath: string): ShellIntegration {
@@ -258,8 +198,6 @@ export class PtyManager {
   // Cache CWD results to avoid repeated lsof calls
   private cwdCache: Map<string, CwdCache> = new Map()
   private foregroundProcessCache: Map<string, ForegroundProcessCache> = new Map()
-  private stopHookMtimeCache: Map<string, number> = new Map()
-  private stopHookWatcher: FSWatcher | null = null
   private static CWD_CACHE_TTL = 2000 // 2 seconds
   private static FOREGROUND_PROCESS_CACHE_TTL = 2000 // 2 seconds
   private integrationReady = false
@@ -268,82 +206,10 @@ export class PtyManager {
     if (this.integrationReady) return
     try {
       ensureShellIntegrationScripts()
-      this.ensureStopHookWatcher()
       this.integrationReady = true
     } catch (err) {
       console.error('Failed to write shell integration scripts:', err)
     }
-  }
-
-  private ensureStopHookWatcher(): void {
-    if (this.stopHookWatcher) return
-    const hookEventsDir = getHookEventsDir()
-    try {
-      const hookEventsDirStat = lstatSync(hookEventsDir)
-      if (hookEventsDirStat.isSymbolicLink()) {
-        throw new Error(`Hook events directory is a symlink — refusing to watch: ${hookEventsDir}`)
-      }
-    } catch (err) {
-      debugLog('Stop hook watcher setup failed:', err)
-      return
-    }
-
-    this.stopHookWatcher = watch(
-      hookEventsDir,
-      { persistent: false },
-      (_eventType, fileName) => {
-        const fileNameString = typeof fileName === 'string'
-          ? fileName
-          : fileName?.toString() ?? ''
-        if (!fileNameString.endsWith('.stop')) return
-
-        let hookEventsDirStat
-        try {
-          hookEventsDirStat = lstatSync(hookEventsDir)
-        } catch {
-          return
-        }
-        if (hookEventsDirStat.isSymbolicLink()) return
-
-        const sessionId = fileNameString.slice(0, -'.stop'.length)
-        if (!sessionId) return
-
-        const instance = this.instances.get(sessionId)
-        if (!instance) return
-
-        let stopFilePath: string
-        try {
-          stopFilePath = resolveStopHookFilePath(sessionId)
-        } catch {
-          return
-        }
-
-        const stopFileStat = (() => {
-          try {
-            return lstatSync(stopFilePath)
-          } catch {
-            return null
-          }
-        })()
-        if (!stopFileStat || stopFileStat.isSymbolicLink() || !stopFileStat.isFile()) {
-          return
-        }
-
-        const mtimeMs = stopFileStat.mtimeMs
-
-        const previousMtimeMs = this.stopHookMtimeCache.get(sessionId) ?? 0
-        if (mtimeMs <= previousMtimeMs) return
-
-        this.stopHookMtimeCache.set(sessionId, mtimeMs)
-        instance.callbacks.onAiStop?.()
-      }
-    )
-
-    this.stopHookWatcher.on('error', (err) => {
-      debugLog('Stop hook watcher failed:', err)
-      this.stopHookWatcher?.close()
-      this.stopHookWatcher = null
-    })
   }
 
   /**
@@ -372,15 +238,6 @@ export class PtyManager {
     const integration = this.integrationReady
       ? getShellIntegration(shellInfo.path)
       : { args: [] as string[], env: {} as Record<string, string> }
-    const stopHookFile = resolveStopHookFilePath(sessionId)
-
-    // Remove stale stop markers when a session is (re)spawned.
-    try {
-      rmSync(stopHookFile, { force: true })
-    } catch {
-      // Ignore cleanup failures.
-    }
-    this.stopHookMtimeCache.delete(sessionId)
 
     let ptyProcess: pty.IPty
     try {
@@ -394,9 +251,6 @@ export class PtyManager {
           TERM: 'xterm-256color',
           COLORTERM: 'truecolor',
           CDW_SESSION_ID: sessionId,
-          CDW_STOP_HOOK_FILE: stopHookFile,
-          CDW_CLAUDE_STOP_HOOK_SCRIPT: getClaudeStopHookScriptPath(),
-          CDW_CLAUDE_STOP_HOOK_POWERSHELL_SCRIPT: getClaudeStopHookPowerShellScriptPath(),
           ...integration.env,
         },
         useConpty: isWindows,
@@ -433,7 +287,6 @@ export class PtyManager {
       this.instances.delete(sessionId)
       this.cwdCache.delete(sessionId)
       this.foregroundProcessCache.delete(sessionId)
-      this.stopHookMtimeCache.delete(sessionId)
     })
 
     this.instances.set(sessionId, instance)
@@ -469,7 +322,6 @@ export class PtyManager {
       this.instances.delete(sessionId)
       this.cwdCache.delete(sessionId)
       this.foregroundProcessCache.delete(sessionId)
-      this.stopHookMtimeCache.delete(sessionId)
     }
   }
 
@@ -480,8 +332,6 @@ export class PtyManager {
     for (const [sessionId] of this.instances) {
       this.kill(sessionId)
     }
-    this.stopHookWatcher?.close()
-    this.stopHookWatcher = null
   }
 
   /**

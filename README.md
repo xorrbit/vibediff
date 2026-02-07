@@ -19,7 +19,7 @@ IDEs are on borrowed time. The workflow now is: open Claude Code, tell it what y
 - **Instant CWD detection**: Shell integration (bash/zsh/fish) reports directory changes instantly via OSC 7, no polling delay
 - **Smart tab naming**: Tabs show your git branch name, or directory name when on main/master
 - **Multi-tab support**: Multiple sessions with keyboard shortcuts, or double-click the tab bar to open a new tab
-- **AI waiting tab indicator**: Background tabs waiting on Claude/Codex are highlighted with a subtle tint and pulsing icon, with optional Claude `Stop` hook support for higher-accuracy detection
+- **AI waiting tab indicator**: Background tabs waiting on Claude/Codex are highlighted with a subtle tint and pulsing icon
 - **Terminal context menu**: Right-click for Copy, Paste, Select All, and Clear
 - **WebGL-accelerated terminal**: Hardware-accelerated rendering for smooth scrolling and output
 - **Cross-platform**: macOS, Windows, and Linux
@@ -66,52 +66,6 @@ Download from the [Releases](https://github.com/xorrbit/claudedidwhat/releases) 
 | `Ctrl+Shift+Tab` | Previous tab |
 | `Ctrl+1-9` / `Cmd+1-9` | Switch to tab by number |
 | `Ctrl+?` / `Cmd+?` | Show help overlay |
-
-### Optional: Claude Stop Hook
-
-For Claude Code users, you can wire the `Stop` hook to provide an explicit per-tab stop signal. This makes waiting-dot detection more accurate than output heuristics alone.
-
-Add a command hook in your Claude settings.
-
-macOS/Linux:
-
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CDW_CLAUDE_STOP_HOOK_SCRIPT\""
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-Windows PowerShell:
-
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:CDW_CLAUDE_STOP_HOOK_POWERSHELL_SCRIPT\""
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-Each terminal tab sets helper env vars automatically (`CDW_CLAUDE_STOP_HOOK_SCRIPT`, `CDW_CLAUDE_STOP_HOOK_POWERSHELL_SCRIPT`, and tab-specific `CDW_STOP_HOOK_FILE`), so signals are associated with the correct tab.
 
 ### Diff Panel
 

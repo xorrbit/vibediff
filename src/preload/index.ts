@@ -51,14 +51,6 @@ const electronAPI: ElectronAPI = {
       return () => ipcRenderer.removeListener(PTY_CHANNELS.CWD_CHANGED, listener)
     },
 
-    onAiStop: (callback: (sessionId: string) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, sessionId: string) => {
-        callback(sessionId)
-      }
-      ipcRenderer.on(PTY_CHANNELS.AI_STOP, listener)
-      return () => ipcRenderer.removeListener(PTY_CHANNELS.AI_STOP, listener)
-    },
-
     getCwd: (sessionId: string): Promise<string | null> =>
       ipcRenderer.invoke('pty:getCwd', sessionId),
 

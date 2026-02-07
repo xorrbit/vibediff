@@ -98,7 +98,6 @@ describe('registerPtyHandlers', () => {
         onData: expect.any(Function),
         onExit: expect.any(Function),
         onCwdChanged: expect.any(Function),
-        onAiStop: expect.any(Function),
       })
     )
 
@@ -106,12 +105,10 @@ describe('registerPtyHandlers', () => {
     callbacks.onData('hello')
     callbacks.onExit(0)
     callbacks.onCwdChanged('/work/new')
-    callbacks.onAiStop()
 
     expect(mockSendToRenderer).toHaveBeenCalledWith(PTY_CHANNELS.DATA, 'session-a', 'hello')
     expect(mockSendToRenderer).toHaveBeenCalledWith(PTY_CHANNELS.EXIT, 'session-a', 0)
     expect(mockSendToRenderer).toHaveBeenCalledWith(PTY_CHANNELS.CWD_CHANGED, 'session-a', '/work/new')
-    expect(mockSendToRenderer).toHaveBeenCalledWith(PTY_CHANNELS.AI_STOP, 'session-a')
   })
 
   it('propagates spawn errors', async () => {

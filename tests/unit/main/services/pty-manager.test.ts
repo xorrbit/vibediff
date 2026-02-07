@@ -10,15 +10,9 @@ const {
   mockExecAsync,
   mockMkdirSync,
   mockWriteFileSync,
-  mockWatch,
-  mockRmSync,
   mockGetPath,
   mockPtyProcess,
 } = vi.hoisted(() => {
-  const mockFsWatcher = {
-    on: vi.fn(),
-    close: vi.fn(),
-  }
   const mockPtyProcess = {
     pid: 12345,
     process: 'bash',
@@ -38,8 +32,6 @@ const {
     mockExecAsync: vi.fn(),
     mockMkdirSync: vi.fn(),
     mockWriteFileSync: vi.fn(),
-    mockWatch: vi.fn(() => mockFsWatcher),
-    mockRmSync: vi.fn(),
     mockGetPath: vi.fn(() => '/mock/userData'),
     mockPtyProcess,
   }
@@ -69,8 +61,6 @@ vi.mock('fs', () => {
     lstatSync: mockLstatSync,
     mkdirSync: mockMkdirSync,
     writeFileSync: mockWriteFileSync,
-    watch: mockWatch,
-    rmSync: mockRmSync,
   }
   return { ...mod, default: mod }
 })
@@ -158,10 +148,6 @@ describe('PtyManager', () => {
       expect(() => manager.spawn('session-1', '/nonexistent')).toThrow('Directory does not exist')
     })
 
-    it('throws when session id would escape hook-events path', () => {
-      expect(() => manager.spawn('../evil', '/home/user')).toThrow('Invalid stop hook path')
-    })
-
     it('sets env with TERM and COLORTERM', () => {
       manager.spawn('session-1', '/home/user')
 
@@ -177,7 +163,7 @@ describe('PtyManager', () => {
       )
     })
 
-    it('sets session-scoped stop hook env vars for Claude hook integration', () => {
+    it('sets session id env var for child processes', () => {
       manager.spawn('session-1', '/home/user')
 
       expect(mockPtySpawn).toHaveBeenCalledWith(
@@ -186,9 +172,6 @@ describe('PtyManager', () => {
         expect.objectContaining({
           env: expect.objectContaining({
             CDW_SESSION_ID: 'session-1',
-            CDW_STOP_HOOK_FILE: '/mock/userData/hook-events/session-1.stop',
-            CDW_CLAUDE_STOP_HOOK_SCRIPT: '/mock/userData/shell-integration/claude-stop-hook.sh',
-            CDW_CLAUDE_STOP_HOOK_POWERSHELL_SCRIPT: '/mock/userData/shell-integration/claude-stop-hook.ps1',
           }),
         })
       )
@@ -531,7 +514,7 @@ describe('PtyManager', () => {
       )
     })
 
-    it('writes integration scripts and helper with restrictive permissions', () => {
+    it('writes integration scripts with restrictive permissions', () => {
       manager.spawn('session-1', '/home/user')
 
       expect(mockWriteFileSync).toHaveBeenCalledWith(
@@ -549,17 +532,7 @@ describe('PtyManager', () => {
         expect.any(String),
         { mode: 0o600 }
       )
-      expect(mockWriteFileSync).toHaveBeenCalledWith(
-        expect.stringContaining('claude-stop-hook.sh'),
-        expect.any(String),
-        { mode: 0o700 }
-      )
-      expect(mockWriteFileSync).toHaveBeenCalledWith(
-        expect.stringContaining('claude-stop-hook.ps1'),
-        expect.any(String),
-        { mode: 0o600 }
-      )
-      expect(mockWriteFileSync).toHaveBeenCalledTimes(5)
+      expect(mockWriteFileSync).toHaveBeenCalledTimes(3)
     })
 
     it('uses app userData path for integration directory', () => {
@@ -567,10 +540,6 @@ describe('PtyManager', () => {
 
       expect(mockMkdirSync).toHaveBeenCalledWith(
         '/mock/userData/shell-integration',
-        { recursive: true, mode: 0o700 }
-      )
-      expect(mockMkdirSync).toHaveBeenCalledWith(
-        '/mock/userData/hook-events',
         { recursive: true, mode: 0o700 }
       )
     })
@@ -594,44 +563,4 @@ describe('PtyManager', () => {
     })
   })
 
-  describe('claude stop hook signals', () => {
-    it('routes stop-file events to the matching session callback once per mtime', () => {
-      const onAiStop = vi.fn()
-      let stopFileMtime = 1000
-      mockLstatSync.mockImplementation((target: string) => {
-        if (target.endsWith('.stop')) {
-          return { isSymbolicLink: () => false, isFile: () => true, mtimeMs: stopFileMtime }
-        }
-        return { isSymbolicLink: () => false, isFile: () => false, mtimeMs: 0 }
-      })
-      manager.spawn('session-1', '/home/user', undefined, { onData: vi.fn(), onExit: vi.fn(), onAiStop })
-
-      const watchCallback = mockWatch.mock.calls[0][2] as (eventType: string, fileName: string) => void
-      watchCallback('change', 'session-1.stop')
-      expect(onAiStop).toHaveBeenCalledTimes(1)
-
-      watchCallback('change', 'session-1.stop')
-      expect(onAiStop).toHaveBeenCalledTimes(1)
-
-      stopFileMtime = 1100
-      watchCallback('change', 'session-1.stop')
-      expect(onAiStop).toHaveBeenCalledTimes(2)
-    })
-
-    it('ignores symlinked stop hook files', () => {
-      const onAiStop = vi.fn()
-      mockLstatSync.mockImplementation((target: string) => {
-        if (target.endsWith('.stop')) {
-          return { isSymbolicLink: () => true, isFile: () => false, mtimeMs: 1200 }
-        }
-        return { isSymbolicLink: () => false, isFile: () => false, mtimeMs: 0 }
-      })
-
-      manager.spawn('session-1', '/home/user', undefined, { onData: vi.fn(), onExit: vi.fn(), onAiStop })
-      const watchCallback = mockWatch.mock.calls[0][2] as (eventType: string, fileName: string) => void
-      watchCallback('change', 'session-1.stop')
-
-      expect(onAiStop).not.toHaveBeenCalled()
-    })
-  })
 })

@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Session } from '@shared/types'
-import { subscribePtyAiStop, subscribePtyData } from '../lib/eventDispatchers'
+import { subscribePtyData } from '../lib/eventDispatchers'
 
 const PROMPT_IDLE_THRESHOLD_MS = 700
 const FALLBACK_IDLE_THRESHOLD_MS = 8000
 const PROMPT_HINT_MAX_AGE_MS = 20000
 const FOREGROUND_POLL_INTERVAL_MS = 1500
 const WAITING_CLEAR_CONFIRMATION_POLLS = 2
-const STOP_HOOK_SUPPRESSION_MS = 5000
 const RECENT_OUTPUT_MAX_CHARS = 4000
 const RECENT_OUTPUT_MAX_LINES = 8
 const PROMPT_SCORE_THRESHOLD = 3
@@ -185,7 +184,6 @@ export function useInputWaiting(
   const [waitingIds, setWaitingIds] = useState<Set<string>>(new Set())
   const lastOutputTime = useRef<Map<string, number>>(new Map())
   const lastPromptHintTime = useRef<Map<string, number>>(new Map())
-  const lastStopHookTime = useRef<Map<string, number>>(new Map())
   const recentOutputTail = useRef<Map<string, string>>(new Map())
   const waitingClearStreak = useRef<Map<string, number>>(new Map())
   const waitingIdsRef = useRef<Set<string>>(new Set())
@@ -218,7 +216,6 @@ export function useInputWaiting(
       if (!activeIds.has(sessionId)) {
         lastOutputTime.current.delete(sessionId)
         lastPromptHintTime.current.delete(sessionId)
-        lastStopHookTime.current.delete(sessionId)
         recentOutputTail.current.delete(sessionId)
         waitingClearStreak.current.delete(sessionId)
       }
@@ -261,29 +258,6 @@ export function useInputWaiting(
           // Any non-prompt output means the previous prompt hint is stale.
           lastPromptHintTime.current.delete(sessionId)
         }
-      })
-    )
-
-    return () => {
-      for (const unsubscribe of unsubscribers) {
-        unsubscribe()
-      }
-    }
-  }, [sessionIds])
-
-  useEffect(() => {
-    const unsubscribers = sessionIds.map((sessionId) =>
-      subscribePtyAiStop(sessionId, () => {
-        const now = Date.now()
-        lastStopHookTime.current.set(sessionId, now)
-        lastPromptHintTime.current.delete(sessionId)
-        waitingClearStreak.current.delete(sessionId)
-        setWaitingIds((previous) => {
-          if (!previous.has(sessionId)) return previous
-          const next = new Set(previous)
-          next.delete(sessionId)
-          return next
-        })
       })
     )
 
@@ -378,14 +352,6 @@ export function useInputWaiting(
 
           const lastOutput = lastOutputTime.current.get(sessionId) ?? now
           const lastPromptHint = lastPromptHintTime.current.get(sessionId)
-          const lastStopHook = lastStopHookTime.current.get(sessionId)
-          const suppressFromRecentStop = (
-            typeof lastStopHook === 'number' &&
-            now - lastStopHook <= STOP_HOOK_SUPPRESSION_MS
-          )
-          if (suppressFromRecentStop) {
-            continue
-          }
           const hasFreshPromptHint = (
             typeof lastPromptHint === 'number' &&
             now - lastPromptHint <= PROMPT_HINT_MAX_AGE_MS
