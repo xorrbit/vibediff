@@ -4,11 +4,15 @@ import { join } from 'path'
 
 let electronApp: ElectronApplication
 let page: Page
+let launchError: Error | null = null
 
 test.describe('Diff Panel', () => {
+  const skipIfLaunchUnavailable = () => {
+    if (launchError || !page) test.skip()
+  }
   test.beforeAll(async () => {
-    if (process.env.CI && !process.env.ELECTRON_TEST) {
-      test.skip()
+    if (!process.env.ELECTRON_TEST) {
+      launchError = new Error('Set ELECTRON_TEST=1 to run Electron E2E tests')
       return
     }
 
@@ -16,10 +20,11 @@ test.describe('Diff Panel', () => {
 
     try {
       electronApp = await electron.launch({
-        args: [mainPath],
+        args: ['--no-sandbox', mainPath],
         env: {
           ...process.env,
           NODE_ENV: 'test',
+          ELECTRON_DISABLE_SANDBOX: '1',
         },
       })
 
@@ -28,7 +33,7 @@ test.describe('Diff Panel', () => {
       await page.waitForTimeout(2000)
     } catch (error) {
       console.warn('Electron launch failed, skipping E2E tests:', error)
-      test.skip()
+      launchError = error instanceof Error ? error : new Error(String(error))
     }
   })
 
@@ -39,35 +44,34 @@ test.describe('Diff Panel', () => {
   })
 
   test('diff panel container exists', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
-    // The layout should have a split view
-    const splitContainer = page.locator('[class*="flex"][class*="h-full"]')
-    const count = await splitContainer.count()
-    expect(count).toBeGreaterThanOrEqual(0)
+    await expect(page.getByText('Changes')).toBeVisible({ timeout: 5000 })
   })
 
   test('shows empty state or file list', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
-    // Either shows "No changes" or a file list
-    const noChanges = page.locator('text="No changes detected"')
-    const loading = page.locator('text="Loading"')
-    const notInRepo = page.locator('text="Not a git repository"')
+    const noChanges = page.getByText('No changes detected')
+    const notInRepo = page.getByText('Not in a git repo')
+    const loadingDiff = page.getByText('Loading diff...')
+    const fileItems = page.locator(
+      'button[title*="(Added)"], button[title*="(Modified)"], button[title*="(Deleted)"], button[title*="(Renamed)"], button[title*="(Untracked)"]'
+    )
 
-    // At least one of these states should be present or there should be files
-    await page.waitForTimeout(1000)
-
-    const hasNoChanges = (await noChanges.count()) > 0
-    const hasLoading = (await loading.count()) > 0
-    const hasNotInRepo = (await notInRepo.count()) > 0
-
-    // This is acceptable - we're just checking the diff panel renders
-    expect(true).toBe(true)
+    await expect.poll(async () => {
+      return (await noChanges.count()) > 0 ||
+        (await notInRepo.count()) > 0 ||
+        (await loadingDiff.count()) > 0 ||
+        (await fileItems.count()) > 0
+    }, {
+      timeout: 10000,
+      message: 'Diff panel did not reach any expected visible state',
+    }).toBe(true)
   })
 
   test('resizable divider exists', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
     // Look for the resizable divider
     const divider = page.locator('[class*="cursor-col-resize"]')
@@ -78,7 +82,7 @@ test.describe('Diff Panel', () => {
   })
 
   test('monaco editor container exists in diff view', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
     // Monaco editor creates specific elements
     const monacoContainer = page.locator('.monaco-editor')
@@ -89,7 +93,7 @@ test.describe('Diff Panel', () => {
   })
 
   test('file list items are clickable', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
     // Look for file list items
     const fileItems = page.locator('button:has-text(".")')
@@ -105,7 +109,7 @@ test.describe('Diff Panel', () => {
   })
 
   test('divider can be dragged to resize', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
     const divider = page.locator('[class*="cursor-col-resize"]')
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { DiffEditor } from '@monaco-editor/react'
 import { DiffView } from '@renderer/components/diff/DiffView'
 
 // Monaco mocks are in tests/setup.ts
@@ -246,6 +247,107 @@ describe('DiffView', () => {
       )
 
       expect(await screen.findByTestId('mock-diff-editor')).toBeInTheDocument()
+    })
+  })
+
+  describe('editor pooling behavior', () => {
+    it('evicts least recently used editor when pool grows past cap', async () => {
+      const { rerender, container } = render(
+        <DiffView
+          filePath="file-1.ts"
+          diffContent={{ original: 'old-1', modified: 'new-1' }}
+          isLoading={false}
+        />
+      )
+
+      await screen.findByTestId('mock-diff-editor')
+
+      for (let i = 2; i <= 9; i++) {
+        rerender(
+          <DiffView
+            filePath={`file-${i}.ts`}
+            diffContent={{ original: `old-${i}`, modified: `new-${i}` }}
+            isLoading={false}
+          />
+        )
+      }
+
+      const editors = await screen.findAllByTestId('mock-diff-editor')
+      expect(editors).toHaveLength(8)
+      expect(container.querySelector('[data-file="file-1.ts"]')).not.toBeInTheDocument()
+      expect(container.querySelector('[data-file="file-9.ts"]')).toBeInTheDocument()
+    })
+
+    it('toggles active editor visibility styles when switching files', async () => {
+      const { rerender, container } = render(
+        <DiffView
+          filePath="alpha.ts"
+          diffContent={{ original: 'a', modified: 'a1' }}
+          isLoading={false}
+        />
+      )
+
+      await screen.findByTestId('mock-diff-editor')
+
+      rerender(
+        <DiffView
+          filePath="beta.ts"
+          diffContent={{ original: 'b', modified: 'b1' }}
+          isLoading={false}
+        />
+      )
+
+      const alpha = container.querySelector('[data-file="alpha.ts"]') as HTMLElement
+      const beta = container.querySelector('[data-file="beta.ts"]') as HTMLElement
+
+      expect(alpha.style.opacity).toBe('0')
+      expect(alpha.style.pointerEvents).toBe('none')
+      expect(alpha.style.zIndex).toBe('0')
+
+      expect(beta.style.opacity).toBe('1')
+      expect(beta.style.pointerEvents).toBe('auto')
+      expect(beta.style.zIndex).toBe('1')
+    })
+
+    it('changes Monaco options when viewMode changes', async () => {
+      const diffEditorMock = vi.mocked(DiffEditor)
+      const diff = { original: 'before', modified: 'after' }
+
+      const { rerender } = render(
+        <DiffView
+          filePath="modes.ts"
+          diffContent={diff}
+          isLoading={false}
+          viewMode="auto"
+        />
+      )
+
+      await screen.findByTestId('mock-diff-editor')
+      const autoProps = diffEditorMock.mock.calls.at(-1)?.[0] as { options: Record<string, unknown> }
+      expect(autoProps.options.renderSideBySide).toBe(true)
+
+      rerender(
+        <DiffView
+          filePath="modes.ts"
+          diffContent={diff}
+          isLoading={false}
+          viewMode="unified"
+        />
+      )
+      const unifiedProps = diffEditorMock.mock.calls.at(-1)?.[0] as { options: Record<string, unknown> }
+      expect(unifiedProps.options.renderSideBySide).toBe(false)
+
+      rerender(
+        <DiffView
+          filePath="modes.ts"
+          diffContent={diff}
+          isLoading={false}
+          viewMode="split"
+        />
+      )
+      const splitProps = diffEditorMock.mock.calls.at(-1)?.[0] as { options: Record<string, unknown> }
+      expect(splitProps.options.renderSideBySide).toBe(true)
+      expect(splitProps.options.useInlineViewWhenSpaceIsLimited).toBe(false)
     })
   })
 })

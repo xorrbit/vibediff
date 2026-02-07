@@ -4,12 +4,16 @@ import { join } from 'path'
 
 let electronApp: ElectronApplication
 let page: Page
+let launchError: Error | null = null
 
 test.describe('App Launch', () => {
+  const skipIfLaunchUnavailable = () => {
+    if (launchError || !page) test.skip()
+  }
+
   test.beforeAll(async () => {
-    // Skip in CI if Electron not available
-    if (process.env.CI && !process.env.ELECTRON_TEST) {
-      test.skip()
+    if (!process.env.ELECTRON_TEST) {
+      launchError = new Error('Set ELECTRON_TEST=1 to run Electron E2E tests')
       return
     }
 
@@ -17,10 +21,11 @@ test.describe('App Launch', () => {
 
     try {
       electronApp = await electron.launch({
-        args: [mainPath],
+        args: ['--no-sandbox', mainPath],
         env: {
           ...process.env,
           NODE_ENV: 'test',
+          ELECTRON_DISABLE_SANDBOX: '1',
         },
       })
 
@@ -28,7 +33,7 @@ test.describe('App Launch', () => {
       await page.waitForLoadState('domcontentloaded')
     } catch (error) {
       console.warn('Electron launch failed, skipping E2E tests:', error)
-      test.skip()
+      launchError = error instanceof Error ? error : new Error(String(error))
     }
   })
 
@@ -39,7 +44,7 @@ test.describe('App Launch', () => {
   })
 
   test('app opens without errors', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
     // Check window exists and is visible
     expect(page).toBeTruthy()
@@ -50,7 +55,7 @@ test.describe('App Launch', () => {
   })
 
   test('window has correct minimum dimensions', async () => {
-    if (!electronApp) test.skip()
+    if (launchError || !electronApp || !page) test.skip()
 
     const window = await electronApp.browserWindow(page)
     const bounds = await window.evaluate((win) => win.getBounds())
@@ -60,7 +65,7 @@ test.describe('App Launch', () => {
   })
 
   test('dark theme is applied', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
     // Check for dark background color
     const bgColor = await page.evaluate(() => {
@@ -73,7 +78,7 @@ test.describe('App Launch', () => {
   })
 
   test('main layout components are visible', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
     // Wait for React to render
     await page.waitForSelector('[class*="flex"]', { timeout: 5000 })
@@ -84,7 +89,7 @@ test.describe('App Launch', () => {
   })
 
   test('tab bar is visible', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
     // Look for the tab bar with tabs
     const tabBar = page.locator('[class*="bg-obsidian-surface"]').first()

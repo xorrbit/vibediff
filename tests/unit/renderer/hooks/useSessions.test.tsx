@@ -442,5 +442,141 @@ describe('useSessions (SessionContext)', () => {
 
       vi.useRealTimers()
     })
+
+    it('falls back to /home when getHomeDir rejects', async () => {
+      vi.mocked(window.electronAPI.fs.getHomeDir).mockRejectedValue(new Error('permission denied'))
+
+      const { result } = renderHook(() => useSessionContext(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.sessions).toHaveLength(1)
+      })
+
+      expect(result.current.sessions[0].cwd).toBe('/home')
+    })
+
+    it('skips polling updates while document is hidden', async () => {
+      vi.useFakeTimers()
+      vi.mocked(window.electronAPI.pty.getCwd).mockResolvedValue('/hidden/dir')
+
+      let hidden = true
+      Object.defineProperty(document, 'hidden', {
+        configurable: true,
+        get: () => hidden,
+      })
+
+      const { result } = renderHook(() => useSessionContext(), { wrapper })
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100)
+      })
+      expect(result.current.sessions).toHaveLength(1)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10000)
+      })
+
+      expect(window.electronAPI.pty.getCwd).not.toHaveBeenCalled()
+
+      hidden = false
+      vi.useRealTimers()
+    })
+
+    it('refreshes session state on visibilitychange when document becomes visible', async () => {
+      vi.useFakeTimers()
+      vi.mocked(window.electronAPI.pty.getCwd).mockResolvedValue('/visible/dir')
+
+      let hidden = true
+      Object.defineProperty(document, 'hidden', {
+        configurable: true,
+        get: () => hidden,
+      })
+
+      const { result } = renderHook(() => useSessionContext(), { wrapper })
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100)
+      })
+      expect(result.current.sessions).toHaveLength(1)
+      expect(window.electronAPI.pty.getCwd).not.toHaveBeenCalled()
+
+      hidden = false
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'))
+        await Promise.resolve()
+      })
+
+      expect(window.electronAPI.pty.getCwd).toHaveBeenCalled()
+
+      vi.useRealTimers()
+    })
+
+    it('updates sessionCwds, sessionGitRoots, and session name on onCwdChanged', async () => {
+      let cwdChangedHandler: ((sessionId: string, cwd: string) => void | Promise<void>) | null = null
+      window.electronAPI.pty.onCwdChanged = vi.fn((handler) => {
+        cwdChangedHandler = handler
+        return () => {}
+      })
+
+      vi.mocked(window.electronAPI.git.findGitRoot).mockImplementation(async (cwd) =>
+        cwd.startsWith('/repo') ? '/repo' : null
+      )
+      vi.mocked(window.electronAPI.git.getCurrentBranch).mockImplementation(async (cwd) =>
+        cwd === '/repo' ? 'feature/new-ui' : null
+      )
+
+      const { result } = renderHook(() => useSessionContext(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.sessions).toHaveLength(1)
+      })
+
+      const sessionId = result.current.sessions[0].id
+
+      await act(async () => {
+        await cwdChangedHandler?.(sessionId, '/repo/worktree')
+      })
+
+      expect(result.current.sessionCwds.get(sessionId)).toBe('/repo/worktree')
+      expect(result.current.sessionGitRoots.get(sessionId)).toBe('/repo')
+      expect(result.current.sessions.find((s) => s.id === sessionId)?.name).toBe('feature/new-ui')
+    })
+
+    it('does not churn map/session state when onCwdChanged receives unchanged values', async () => {
+      let cwdChangedHandler: ((sessionId: string, cwd: string) => void | Promise<void>) | null = null
+      window.electronAPI.pty.onCwdChanged = vi.fn((handler) => {
+        cwdChangedHandler = handler
+        return () => {}
+      })
+
+      vi.mocked(window.electronAPI.git.findGitRoot).mockResolvedValue('/repo')
+      vi.mocked(window.electronAPI.git.getCurrentBranch).mockImplementation(async (cwd) =>
+        cwd === '/repo' ? 'feature/new-ui' : null
+      )
+
+      const { result } = renderHook(() => useSessionContext(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.sessions).toHaveLength(1)
+      })
+
+      const sessionId = result.current.sessions[0].id
+
+      await act(async () => {
+        await cwdChangedHandler?.(sessionId, '/repo/worktree')
+      })
+
+      const sessionsRef = result.current.sessions
+      const cwdMapRef = result.current.sessionCwds
+      const gitRootMapRef = result.current.sessionGitRoots
+
+      await act(async () => {
+        await cwdChangedHandler?.(sessionId, '/repo/worktree')
+      })
+
+      expect(result.current.sessions).toBe(sessionsRef)
+      expect(result.current.sessionCwds).toBe(cwdMapRef)
+      expect(result.current.sessionGitRoots).toBe(gitRootMapRef)
+    })
   })
 })

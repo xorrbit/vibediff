@@ -4,11 +4,15 @@ import { join } from 'path'
 
 let electronApp: ElectronApplication
 let page: Page
+let launchError: Error | null = null
 
 test.describe('Terminal', () => {
+  const skipIfLaunchUnavailable = () => {
+    if (launchError || !page) test.skip()
+  }
   test.beforeAll(async () => {
-    if (process.env.CI && !process.env.ELECTRON_TEST) {
-      test.skip()
+    if (!process.env.ELECTRON_TEST) {
+      launchError = new Error('Set ELECTRON_TEST=1 to run Electron E2E tests')
       return
     }
 
@@ -16,10 +20,11 @@ test.describe('Terminal', () => {
 
     try {
       electronApp = await electron.launch({
-        args: [mainPath],
+        args: ['--no-sandbox', mainPath],
         env: {
           ...process.env,
           NODE_ENV: 'test',
+          ELECTRON_DISABLE_SANDBOX: '1',
         },
       })
 
@@ -28,7 +33,7 @@ test.describe('Terminal', () => {
       await page.waitForTimeout(2000) // Give terminal time to spawn
     } catch (error) {
       console.warn('Electron launch failed, skipping E2E tests:', error)
-      test.skip()
+      launchError = error instanceof Error ? error : new Error(String(error))
     }
   })
 
@@ -39,7 +44,7 @@ test.describe('Terminal', () => {
   })
 
   test('terminal canvas is rendered', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
     // xterm.js renders to either canvas (WebGL) or with rows/cursor elements
     // Check for xterm container with terminal content
@@ -50,19 +55,14 @@ test.describe('Terminal', () => {
   })
 
   test('terminal container is present', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
-    // Look for xterm container
     const xtermContainer = page.locator('.xterm')
-
-    // May or may not be visible depending on whether a session exists
-    const count = await xtermContainer.count()
-    // Just verify the query doesn't throw
-    expect(count).toBeGreaterThanOrEqual(0)
+    await expect(xtermContainer.first()).toBeVisible({ timeout: 10000 })
   })
 
   test('terminal resizes with window', async () => {
-    if (!electronApp || !page) test.skip()
+    if (launchError || !electronApp || !page) test.skip()
 
     const window = await electronApp.browserWindow(page)
 
@@ -89,15 +89,22 @@ test.describe('Terminal', () => {
   })
 
   test('terminal can receive keyboard input', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
-    // Focus on the page
-    await page.click('body')
+    const terminalScreen = page.locator('.xterm-screen').first()
+    const terminalRows = page.locator('.xterm-rows').first()
+    await expect(terminalScreen).toBeVisible({ timeout: 10000 })
+    await expect(terminalRows).toBeVisible({ timeout: 10000 })
 
-    // Type into terminal (assuming terminal is focused when session is active)
-    await page.keyboard.type('echo test')
+    const before = await terminalRows.innerText()
+    const marker = `CLAUDEDIDWHAT_E2E_${Date.now()}`
 
-    // We can't easily verify the output, but the typing shouldn't throw
-    await page.waitForTimeout(200)
+    await terminalScreen.click()
+    await page.keyboard.type(`printf "${marker}\\n"`)
+    await page.keyboard.press('Enter')
+
+    await expect(terminalRows).toContainText(marker, { timeout: 10000 })
+    const after = await terminalRows.innerText()
+    expect(after).not.toBe(before)
   })
 })

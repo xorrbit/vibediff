@@ -229,9 +229,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
         const newName = getSessionName(branch, cwd)
 
-        setSessions((prev) =>
-          prev.map((s) => (s.id === sessionId && s.name !== newName ? { ...s, name: newName } : s))
-        )
+        setSessions((prev) => {
+          const index = prev.findIndex((s) => s.id === sessionId)
+          if (index === -1 || prev[index].name === newName) {
+            return prev
+          }
+          const next = [...prev]
+          next[index] = { ...next[index], name: newName }
+          return next
+        })
       } catch {
         // Ignore errors from git lookups
       }

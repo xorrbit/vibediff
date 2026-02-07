@@ -8,10 +8,11 @@ export async function launchElectron(): Promise<{ app: ElectronApplication; page
   const mainPath = join(__dirname, '../../dist/main/index.js')
 
   electronApp = await electron.launch({
-    args: [mainPath],
+    args: ['--no-sandbox', mainPath],
     env: {
       ...process.env,
       NODE_ENV: 'test',
+      ELECTRON_DISABLE_SANDBOX: '1',
     },
   })
 

@@ -26,12 +26,13 @@ vi.mock('@renderer/components/diff/FileList', () => ({
 }))
 
 vi.mock('@renderer/components/diff/DiffView', () => ({
-  DiffView: vi.fn(({ filePath, diffContent, isLoading }: any) => {
+  DiffView: vi.fn(({ filePath, diffContent, isLoading, viewMode }: any) => {
     const React = require('react')
     return React.createElement('div', {
       'data-testid': 'mock-diff-view',
       'data-file': filePath || '',
       'data-loading': String(isLoading),
+      'data-view-mode': viewMode || 'auto',
     }, diffContent ? 'Has diff' : 'No diff')
   }),
 }))
@@ -213,6 +214,53 @@ describe('DiffPanel', () => {
   })
 
   describe('resize behavior', () => {
+    it('cycles diff mode auto -> unified -> split and back', () => {
+      const onFocusTerminal = vi.fn()
+      mockUseGitDiff.mockReturnValue({
+        ...defaultGitDiff,
+        selectedFile: 'src/main.ts',
+        diffContent: { original: 'old', modified: 'new' },
+      })
+
+      render(<DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} />)
+
+      const viewModeButton = screen.getByTitle('View: Automatic')
+      const diffView = screen.getByTestId('mock-diff-view')
+
+      expect(diffView).toHaveAttribute('data-view-mode', 'auto')
+
+      fireEvent.click(viewModeButton)
+      expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'unified')
+
+      fireEvent.click(screen.getByTitle('View: Unified'))
+      expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'split')
+
+      fireEvent.click(screen.getByTitle('View: Split'))
+      expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'auto')
+      expect(onFocusTerminal).toHaveBeenCalledTimes(3)
+    })
+
+    it('copies selected file path and filename to clipboard', () => {
+      const writeText = vi.fn().mockResolvedValue(undefined)
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText },
+      })
+
+      mockUseGitDiff.mockReturnValue({
+        ...defaultGitDiff,
+        selectedFile: 'src/components/App.tsx',
+      })
+
+      render(<DiffPanel sessionId="s1" cwd="/project" />)
+
+      fireEvent.click(screen.getByTitle('Copy relative path'))
+      fireEvent.click(screen.getByTitle('Copy filename'))
+
+      expect(writeText).toHaveBeenNthCalledWith(1, 'src/components/App.tsx')
+      expect(writeText).toHaveBeenNthCalledWith(2, 'App.tsx')
+    })
+
     it('clamps file list width between 180 and 500', () => {
       mockUseGitDiff.mockReturnValue({
         ...defaultGitDiff,
@@ -220,10 +268,70 @@ describe('DiffPanel', () => {
       })
 
       const { container } = render(<DiffPanel sessionId="s1" cwd="/project" />)
+      const immediateRaf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+        cb(0)
+        return 1
+      })
 
-      // The file list panel should have a width style
-      const floatingPanel = container.querySelector('[style*="width"]')
+      const panelContainer = container.firstElementChild as HTMLDivElement
+      Object.defineProperty(panelContainer, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({ left: 420, top: 0, width: 900, height: 600, right: 1320, bottom: 600 }),
+      })
+
+      const widthHandle = container.querySelector('.cursor-col-resize') as HTMLDivElement
+      const floatingPanel = container.querySelector('[style*="width"]') as HTMLDivElement
+
+      fireEvent.mouseDown(widthHandle, { clientX: 100 })
+      fireEvent.mouseMove(document, { clientX: -400 })
+      fireEvent.mouseUp(document)
+      expect(floatingPanel.style.width).toBe('500px')
+
+      fireEvent.mouseDown(widthHandle, { clientX: 100 })
+      fireEvent.mouseMove(document, { clientX: 410 })
+      fireEvent.mouseUp(document)
+      expect(floatingPanel.style.width).toBe('180px')
+
       expect(floatingPanel).toBeInTheDocument()
+      immediateRaf.mockRestore()
+    })
+
+    it('clamps file list height between 100 and 90% of container height', () => {
+      mockUseGitDiff.mockReturnValue({
+        ...defaultGitDiff,
+        files: [{ path: 'file.ts', status: 'M' }],
+      })
+
+      const { container } = render(<DiffPanel sessionId="s1" cwd="/project" />)
+      const immediateRaf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+        cb(0)
+        return 1
+      })
+
+      const panelContainer = container.firstElementChild as HTMLDivElement
+      const floatingPanel = container.querySelector('[style*="width"]') as HTMLDivElement
+      const heightHandle = container.querySelector('.cursor-row-resize') as HTMLDivElement
+
+      Object.defineProperty(panelContainer, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({ left: 420, top: 0, width: 900, height: 500, right: 1320, bottom: 500 }),
+      })
+      Object.defineProperty(floatingPanel, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({ left: 0, top: 100, width: 256, height: 240, right: 256, bottom: 340 }),
+      })
+
+      fireEvent.mouseDown(heightHandle, { clientY: 120 })
+      fireEvent.mouseMove(document, { clientY: 800 })
+      fireEvent.mouseUp(document)
+      expect(floatingPanel.style.maxHeight).toBe('450px')
+
+      fireEvent.mouseDown(heightHandle, { clientY: 120 })
+      fireEvent.mouseMove(document, { clientY: 110 })
+      fireEvent.mouseUp(document)
+      expect(floatingPanel.style.maxHeight).toBe('100px')
+
+      immediateRaf.mockRestore()
     })
   })
 })

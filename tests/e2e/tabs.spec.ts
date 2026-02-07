@@ -4,11 +4,15 @@ import { join } from 'path'
 
 let electronApp: ElectronApplication
 let page: Page
+let launchError: Error | null = null
 
 test.describe('Tab Management', () => {
+  const skipIfLaunchUnavailable = () => {
+    if (launchError || !page) test.skip()
+  }
   test.beforeAll(async () => {
-    if (process.env.CI && !process.env.ELECTRON_TEST) {
-      test.skip()
+    if (!process.env.ELECTRON_TEST) {
+      launchError = new Error('Set ELECTRON_TEST=1 to run Electron E2E tests')
       return
     }
 
@@ -16,10 +20,11 @@ test.describe('Tab Management', () => {
 
     try {
       electronApp = await electron.launch({
-        args: [mainPath],
+        args: ['--no-sandbox', mainPath],
         env: {
           ...process.env,
           NODE_ENV: 'test',
+          ELECTRON_DISABLE_SANDBOX: '1',
         },
       })
 
@@ -29,7 +34,7 @@ test.describe('Tab Management', () => {
       await page.waitForTimeout(1000)
     } catch (error) {
       console.warn('Electron launch failed, skipping E2E tests:', error)
-      test.skip()
+      launchError = error instanceof Error ? error : new Error(String(error))
     }
   })
 
@@ -40,23 +45,21 @@ test.describe('Tab Management', () => {
   })
 
   test('double-click on empty tab bar area creates new tab', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
-    // Count current tabs
-    const tabsBefore = await page.locator('[class*="tab"]').count()
+    const tabs = page.locator('button[class*="rounded-t-lg"]')
+    const tabsBefore = await tabs.count()
 
-    // Double-click on the empty area after tabs to create a new tab
     const emptyArea = page.locator('[data-testid="tabbar-empty-space"]').first()
     await emptyArea.dblclick()
-
-    // Wait for new tab to be created
-    await page.waitForTimeout(500)
-
-    // Tab count should have increased
+    await expect.poll(async () => await tabs.count(), {
+      timeout: 5000,
+      message: 'Expected a new tab after double-clicking empty tab bar area',
+    }).toBe(tabsBefore + 1)
   })
 
   test('tab bar shows tabs', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
     // Check that the tab bar structure exists (uses obsidian theme)
     const tabBarArea = page.locator('[class*="flex"][class*="bg-obsidian-surface"]')
@@ -64,20 +67,20 @@ test.describe('Tab Management', () => {
   })
 
   test('Ctrl+T shortcut triggers new tab action', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
-    // Trigger keyboard shortcut
+    const tabs = page.locator('button[class*="rounded-t-lg"]')
+    const tabsBefore = await tabs.count()
+
     await page.keyboard.press('Control+t')
-
-    // Wait for response
-    await page.waitForTimeout(500)
-
-    // The new tab action should have been triggered
-    // (In test mode, dialog may be mocked or need handling)
+    await expect.poll(async () => await tabs.count(), {
+      timeout: 5000,
+      message: 'Expected Ctrl+T to create a new tab',
+    }).toBe(tabsBefore + 1)
   })
 
   test('tabs can be switched by clicking', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
     // This test assumes there are already tabs
     // Look for any tab buttons in the tab bar (uses obsidian theme)
@@ -98,30 +101,19 @@ test.describe('Tab Management', () => {
   })
 
   test('help overlay can be opened with Ctrl+?', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
-    // Press Ctrl+Shift+/ (which is Ctrl+?)
     await page.keyboard.press('Control+Shift+/')
-
-    // Wait for overlay
-    await page.waitForTimeout(500)
-
-    // Check for help overlay content
-    const helpText = page.locator('text="Keyboard Shortcuts"')
-    // May or may not be visible depending on implementation
+    await expect(page.getByText('Keyboard Shortcuts')).toBeVisible({ timeout: 3000 })
   })
 
   test('Escape closes help overlay', async () => {
-    if (!page) test.skip()
+    skipIfLaunchUnavailable()
 
-    // Open help first
     await page.keyboard.press('Control+Shift+/')
-    await page.waitForTimeout(300)
+    await expect(page.getByText('Keyboard Shortcuts')).toBeVisible({ timeout: 3000 })
 
-    // Close with Escape
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(300)
-
-    // Overlay should be closed
+    await expect(page.getByText('Keyboard Shortcuts')).toBeHidden({ timeout: 3000 })
   })
 })
