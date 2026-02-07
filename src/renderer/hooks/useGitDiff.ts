@@ -24,6 +24,7 @@ interface UseGitDiffReturn {
 const MAX_CACHE_SIZE = 50
 const REACTIVATION_REFRESH_DELAY_MS = 50
 const MIN_REACTIVATION_REFRESH_INTERVAL_MS = 2000
+const DIFF_FETCH_DEFER_MS = 0
 
 export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseGitDiffOptions): UseGitDiffReturn {
   const [files, setFiles] = useState<ChangedFile[]>([])
@@ -123,22 +124,6 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
       if (!selectedFileRef.current && changedFiles.length > 0) {
         const firstPath = changedFiles[0].path
         setSelectedFile(firstPath)
-
-        // Prefetch diff inline to avoid an extra render + effect cycle
-        if (requestId === loadRequestId.current) {
-          try {
-            const diff = await window.electronAPI.git.getFileDiff(gitRoot, firstPath)
-            if (requestId === loadRequestId.current) {
-              if (diff) {
-                setCacheEntry(firstPath, diff)
-                setDiffContent(diff)
-              }
-              setIsDiffLoading(false)
-            }
-          } catch {
-            // The selectedFile effect will retry if needed
-          }
-        }
       } else if (selectedFileRef.current) {
         const selectedPath = selectedFileRef.current
         const selectedStillChanged = changedFiles.some((file) => file.path === selectedPath)
@@ -277,6 +262,7 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
     }
 
     let cancelled = false
+    let deferTimer: ReturnType<typeof setTimeout> | null = null
     setIsDiffLoading(true)
     setDiffContent(null)
 
@@ -303,10 +289,13 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
       }
     }
 
-    loadDiff()
+    deferTimer = setTimeout(() => {
+      void loadDiff()
+    }, DIFF_FETCH_DEFER_MS)
 
     return () => {
       cancelled = true
+      if (deferTimer) clearTimeout(deferTimer)
       setIsDiffLoading(false)
     }
   }, [enabled, gitRoot, cwd, selectedFile, setCacheEntry])

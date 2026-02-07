@@ -85,6 +85,7 @@ Optimized for large repositories and multi-tab workflows:
 - **Event-driven updates**: Native file system events (inotify/FSEvents) instead of polling — git status only refreshes when files actually change. Falls back to lightweight polling on WSL2
 - **Instant CWD tracking**: Shell integration emits OSC 7 escape sequences on every prompt, so `cd` is detected in milliseconds instead of waiting for a 5-second poll
 - **LRU diff cache**: Recently viewed diffs are cached for instant file switching, with automatic eviction to bound memory usage
+- **Async large-diff loading**: Uncached diff fetches are deferred by a tick so selection renders immediately, and very large diffs are mounted during idle time (`200k+` combined chars, `40ms` defer, `250ms` idle timeout, `1000ms` Monaco max computation time)
 - **Visibility-aware**: Background tabs pause file watching and git operations until focused
 - **Cached git instances**: SimpleGit instances and repo checks are reused instead of recreated per operation
 - **Async I/O**: System calls (like macOS `lsof`) run asynchronously to avoid blocking the main thread

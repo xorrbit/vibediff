@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, act } from '@testing-library/react'
 import { DiffEditor } from '@monaco-editor/react'
 import { DiffView } from '@renderer/components/diff/DiffView'
 
@@ -251,6 +251,67 @@ describe('DiffView', () => {
   })
 
   describe('editor pooling behavior', () => {
+    it('defers large diff editor mount until idle time', async () => {
+      vi.useFakeTimers()
+      const originalRequestIdleCallback = window.requestIdleCallback
+      const originalCancelIdleCallback = window.cancelIdleCallback
+
+      const requestIdleCallbackMock = vi.fn((callback: IdleRequestCallback) => {
+        callback({
+          didTimeout: false,
+          timeRemaining: () => 50,
+        } as IdleDeadline)
+        return 1
+      })
+      const cancelIdleCallbackMock = vi.fn((id: number) => {
+        void id
+      })
+
+      try {
+        Object.defineProperty(window, 'requestIdleCallback', {
+          configurable: true,
+          writable: true,
+          value: requestIdleCallbackMock,
+        })
+        Object.defineProperty(window, 'cancelIdleCallback', {
+          configurable: true,
+          writable: true,
+          value: cancelIdleCallbackMock,
+        })
+
+        const largeText = 'x'.repeat(120_000)
+        const { container } = render(
+          <DiffView
+            filePath="huge.ts"
+            diffContent={{ original: largeText, modified: largeText }}
+            isLoading={false}
+          />
+        )
+
+        expect(screen.queryByTestId('mock-diff-editor')).not.toBeInTheDocument()
+        expect(container.querySelector('[data-file="huge.ts"]')).not.toBeInTheDocument()
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(40)
+        })
+
+        expect(requestIdleCallbackMock).toHaveBeenCalledTimes(1)
+        expect(container.querySelector('[data-file="huge.ts"]')).toBeInTheDocument()
+      } finally {
+        Object.defineProperty(window, 'requestIdleCallback', {
+          configurable: true,
+          writable: true,
+          value: originalRequestIdleCallback,
+        })
+        Object.defineProperty(window, 'cancelIdleCallback', {
+          configurable: true,
+          writable: true,
+          value: originalCancelIdleCallback,
+        })
+        vi.useRealTimers()
+      }
+    })
+
     it('evicts least recently used editor when pool grows past cap', async () => {
       const { rerender, container } = render(
         <DiffView

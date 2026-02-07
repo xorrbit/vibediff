@@ -78,6 +78,7 @@ function LoadingFallback() {
 // Memoized editor options to prevent unnecessary Monaco updates
 const BASE_EDITOR_OPTIONS = {
   readOnly: true,
+  maxComputationTime: 1000,
   minimap: { enabled: false },
   scrollBeyondLastLine: false,
   fontSize: 13,
@@ -136,6 +137,9 @@ const DiffEditorContent = memo(function DiffEditorContent({
 })
 
 const POOL_CAP = 8
+const LARGE_DIFF_CHAR_THRESHOLD = 200_000
+const DIFF_POOL_DEFER_MS = 40
+const DIFF_POOL_IDLE_TIMEOUT_MS = 250
 
 interface PoolEntry {
   path: string
@@ -193,33 +197,64 @@ export const DiffView = memo(function DiffView({ filePath, diffContent, isLoadin
     }
     if (diffContent === prevDiffRef.current) return
     prevDiffRef.current = diffContent
+    let cancelled = false
+    let deferTimer: ReturnType<typeof setTimeout> | null = null
+    let idleId: number | null = null
 
     // Track access order for eviction (ref-only, no re-render)
     lruRef.current = [...lruRef.current.filter((p) => p !== filePath), filePath]
 
     const lang = getLanguage(filePath)
-    setPool((prev) => {
-      const existing = prev.find((e) => e.path === filePath)
-      if (existing) {
-        // Already pooled — only update state if content actually changed
-        if (existing.content.original === diffContent.original &&
-            existing.content.modified === diffContent.modified) {
-          return prev // Same reference → no re-render
+    const upsertPool = () => {
+      if (cancelled) return
+      setPool((prev) => {
+        const existing = prev.find((e) => e.path === filePath)
+        if (existing) {
+          // Already pooled — only update state if content actually changed
+          if (existing.content.original === diffContent.original &&
+              existing.content.modified === diffContent.modified) {
+            return prev // Same reference → no re-render
+          }
+          return prev.map((e) =>
+            e.path === filePath ? { path: filePath, content: diffContent, language: lang } : e
+          )
         }
-        return prev.map((e) =>
-          e.path === filePath ? { path: filePath, content: diffContent, language: lang } : e
-        )
+        // New entry — evict LRU if at cap
+        let next = [...prev]
+        if (next.length >= POOL_CAP) {
+          const poolPaths = new Set(next.map((e) => e.path))
+          const toEvict = lruRef.current.find((p) => p !== filePath && poolPaths.has(p))
+          next = toEvict ? next.filter((e) => e.path !== toEvict) : next.slice(1)
+        }
+        next.push({ path: filePath, content: diffContent, language: lang })
+        return next
+      })
+    }
+
+    const combinedSize = diffContent.original.length + diffContent.modified.length
+    if (combinedSize >= LARGE_DIFF_CHAR_THRESHOLD) {
+      deferTimer = setTimeout(() => {
+        if (cancelled) return
+        if (typeof window.requestIdleCallback === 'function') {
+          idleId = window.requestIdleCallback(
+            () => upsertPool(),
+            { timeout: DIFF_POOL_IDLE_TIMEOUT_MS }
+          )
+          return
+        }
+        upsertPool()
+      }, DIFF_POOL_DEFER_MS)
+    } else {
+      upsertPool()
+    }
+
+    return () => {
+      cancelled = true
+      if (deferTimer) clearTimeout(deferTimer)
+      if (idleId !== null && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleId)
       }
-      // New entry — evict LRU if at cap
-      let next = [...prev]
-      if (next.length >= POOL_CAP) {
-        const poolPaths = new Set(next.map((e) => e.path))
-        const toEvict = lruRef.current.find((p) => p !== filePath && poolPaths.has(p))
-        next = toEvict ? next.filter((e) => e.path !== toEvict) : next.slice(1)
-      }
-      next.push({ path: filePath, content: diffContent, language: lang })
-      return next
-    })
+    }
   }, [filePath, diffContent])
 
   // Toggle active editor via direct DOM manipulation — bypasses React entirely.

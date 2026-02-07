@@ -104,9 +104,13 @@ describe('useGitDiff', () => {
         useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
       )
 
-      // Initial load (auto-selects first file and prefetches diff inline)
+      // Initial load (auto-selects first file)
       await act(async () => {
         await vi.advanceTimersByTimeAsync(500)
+      })
+      // Diff fetch is deferred by one tick for responsiveness
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
       })
 
       expect(result.current.diffContent).toEqual(diff)
@@ -165,9 +169,13 @@ describe('useGitDiff', () => {
         useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
       )
 
-      // Initial load (file1 is auto-selected and diff prefetched inline)
+      // Initial load (file1 is auto-selected)
       await act(async () => {
         await vi.advanceTimersByTimeAsync(500)
+      })
+      // Diff fetch is deferred by one tick for responsiveness
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
       })
 
       expect(result.current.diffContent).toEqual(diff1)
@@ -217,7 +225,7 @@ describe('useGitDiff', () => {
         await vi.advanceTimersByTimeAsync(500)
       })
 
-      // Load remaining files (file1 was prefetched inline during auto-select)
+      // Load remaining files (file1 was loaded by deferred auto-select fetch)
       for (const file of files.slice(1)) {
         act(() => {
           result.current.selectFile(file.path)
@@ -354,9 +362,12 @@ describe('useGitDiff', () => {
         useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
       )
 
-      // Initial file load (diff prefetched inline)
+      // Initial file load (diff fetched on deferred tick)
       await act(async () => {
         await vi.advanceTimersByTimeAsync(500)
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
       })
 
       const diffCallsAfterInitialLoad = mockGit.getFileDiff.mock.calls.length
@@ -400,9 +411,12 @@ describe('useGitDiff', () => {
         useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
       )
 
-      // Initial load — inline prefetch fails, selectedFile effect retries immediately
+      // Initial load — deferred selected-file diff load fails gracefully
       await act(async () => {
         await vi.advanceTimersByTimeAsync(500)
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
       })
 
       expect(result.current.diffContent).toBeNull()
