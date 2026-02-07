@@ -33,6 +33,20 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install Spectre-mitigated libs (Windows ARM64)
+        if: matrix.os == 'windows-11-arm'
+        shell: pwsh
+        run: |
+          $components = @(
+            'Microsoft.VisualStudio.Component.VC.Spectre.ARM64'
+            'Microsoft.VisualStudio.Component.VC.Spectre.x86.x64'
+          )
+          $vsInstaller = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe'
+          $vsPath = 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise'
+          $argList = @('modify', '--installPath', $vsPath, '--quiet', '--norestart')
+          foreach ($c in $components) { $argList += '--add'; $argList += $c }
+          Start-Process -FilePath $vsInstaller -ArgumentList $argList -Wait
+
       - name: Install dependencies
         run: npm ci
 
