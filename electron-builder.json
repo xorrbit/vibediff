@@ -24,7 +24,8 @@
     "identity": null,
     "hardenedRuntime": true,
     "entitlements": "resources/entitlements.mac.plist",
-    "entitlementsInherit": "resources/entitlements.mac.plist"
+    "entitlementsInherit": "resources/entitlements.mac.plist",
+    "x64ArchFiles": "Contents/Resources/app.asar.unpacked/node_modules/node-pty/bin/darwin-x64-*/**"
   },
   "win": {
     "target": [
