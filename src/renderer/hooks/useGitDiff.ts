@@ -39,7 +39,7 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
   const wasEnabledRef = useRef(enabled)
   const lastSuccessfulLoadAtRef = useRef(0)
   const loadRequestId = useRef(0)
-  const loadFilesRef = useRef<() => Promise<void>>()
+  const loadFilesRef = useRef<(() => Promise<void>) | null>(null)
   // Track enabled in a ref so watcher callbacks can check it without
   // the watcher effect needing `enabled` in its dependency array.
   const enabledRef = useRef(enabled)

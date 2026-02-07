@@ -1,8 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockPtySpawn, mockPlatform, mockExistsSync, mockReadlinkSync, mockLstatSync, mockExecAsync, mockMkdirSync, mockWriteFileSync, mockGetPath } = vi.hoisted(() => {
+const {
+  mockPtySpawn,
+  mockPlatform,
+  mockExistsSync,
+  mockReadlinkSync,
+  mockReadFileSync,
+  mockLstatSync,
+  mockExecAsync,
+  mockMkdirSync,
+  mockWriteFileSync,
+  mockGetPath,
+  mockPtyProcess,
+} = vi.hoisted(() => {
   const mockPtyProcess = {
     pid: 12345,
+    process: 'bash',
     onData: vi.fn(),
     onExit: vi.fn(),
     write: vi.fn(),
@@ -14,11 +27,13 @@ const { mockPtySpawn, mockPlatform, mockExistsSync, mockReadlinkSync, mockLstatS
     mockPlatform: vi.fn(),
     mockExistsSync: vi.fn(),
     mockReadlinkSync: vi.fn(),
+    mockReadFileSync: vi.fn(),
     mockLstatSync: vi.fn(() => ({ isSymbolicLink: () => false })),
     mockExecAsync: vi.fn(),
     mockMkdirSync: vi.fn(),
     mockWriteFileSync: vi.fn(),
     mockGetPath: vi.fn(() => '/mock/userData'),
+    mockPtyProcess,
   }
 })
 
@@ -39,7 +54,14 @@ vi.mock('os', () => {
 })
 
 vi.mock('fs', () => {
-  const mod = { existsSync: mockExistsSync, readlinkSync: mockReadlinkSync, lstatSync: mockLstatSync, mkdirSync: mockMkdirSync, writeFileSync: mockWriteFileSync }
+  const mod = {
+    existsSync: mockExistsSync,
+    readlinkSync: mockReadlinkSync,
+    readFileSync: mockReadFileSync,
+    lstatSync: mockLstatSync,
+    mkdirSync: mockMkdirSync,
+    writeFileSync: mockWriteFileSync,
+  }
   return { ...mod, default: mod }
 })
 
@@ -61,7 +83,7 @@ vi.mock('./shell', () => ({
 import { PtyManager } from '@main/services/pty-manager'
 
 function getPtyMock() {
-  return mockPtySpawn() as ReturnType<typeof mockPtySpawn>
+  return mockPtyProcess
 }
 
 describe('PtyManager', () => {
@@ -72,6 +94,7 @@ describe('PtyManager', () => {
     manager = new PtyManager()
     mockPlatform.mockReturnValue('linux')
     mockExistsSync.mockReturnValue(true)
+    getPtyMock().process = 'bash'
   })
 
   describe('spawn', () => {
@@ -347,6 +370,102 @@ describe('PtyManager', () => {
         ['-a', '-d', 'cwd', '-p', '12345', '-F', 'n'],
         { timeout: 1000 }
       )
+    })
+  })
+
+  describe('getForegroundProcess', () => {
+    it('returns null for non-existent session', async () => {
+      await expect(manager.getForegroundProcess('nonexistent')).resolves.toBeNull()
+    })
+
+    it('returns quick match from node-pty process name', async () => {
+      manager.spawn('session-1', '/home/user')
+      getPtyMock().process = 'claude'
+
+      await expect(manager.getForegroundProcess('session-1')).resolves.toBe('claude')
+    })
+
+    it('checks /proc foreground tpgid on Linux and returns null when shell is foreground', async () => {
+      manager.spawn('session-1', '/home/user')
+      getPtyMock().process = 'node'
+      mockPlatform.mockReturnValue('linux')
+      mockReadFileSync.mockReturnValueOnce(
+        '12345 (bash) S 120 12345 12345 34816 12345 0 0 0 0 0 0 0 0 20 0 1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0'
+      )
+
+      await expect(manager.getForegroundProcess('session-1')).resolves.toBeNull()
+      expect(mockReadFileSync).toHaveBeenCalledWith('/proc/12345/stat', 'utf8')
+    })
+
+    it('detects codex when node runs codex in Linux foreground process cmdline', async () => {
+      manager.spawn('session-1', '/home/user')
+      getPtyMock().process = 'node'
+      mockPlatform.mockReturnValue('linux')
+      mockReadFileSync
+        .mockReturnValueOnce(
+          '12345 (bash) S 120 12345 12345 34816 23456 0 0 0 0 0 0 0 0 20 0 1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0'
+        )
+        .mockReturnValueOnce('/usr/local/bin/node\0/usr/local/bin/codex\0--model\0gpt-5\0')
+
+      await expect(manager.getForegroundProcess('session-1')).resolves.toBe('codex')
+      expect(mockReadFileSync).toHaveBeenCalledWith('/proc/23456/cmdline', 'utf8')
+    })
+
+    it('returns null when Linux proc lookup fails', async () => {
+      manager.spawn('session-1', '/home/user')
+      getPtyMock().process = 'node'
+      mockPlatform.mockReturnValue('linux')
+      mockReadFileSync.mockImplementation(() => {
+        throw new Error('ENOENT')
+      })
+
+      await expect(manager.getForegroundProcess('session-1')).resolves.toBeNull()
+    })
+
+    it('uses macOS ps fallback when process name is node', async () => {
+      mockPlatform.mockReturnValue('darwin')
+      manager = new PtyManager()
+      manager.spawn('session-1', '/home/user')
+      getPtyMock().process = 'node'
+      mockExecAsync
+        .mockResolvedValueOnce({ stdout: '23456\n' })
+        .mockResolvedValueOnce({ stdout: '/usr/local/bin/node /usr/local/bin/claude --json\n' })
+
+      await expect(manager.getForegroundProcess('session-1')).resolves.toBe('claude')
+      expect(mockExecAsync).toHaveBeenCalledWith(
+        'ps',
+        ['-o', 'tpgid=', '-p', '12345'],
+        { timeout: 2000 }
+      )
+      expect(mockExecAsync).toHaveBeenCalledWith(
+        'ps',
+        ['-o', 'args=', '-p', '23456'],
+        { timeout: 2000 }
+      )
+    })
+
+    it('does not run ps fallback on macOS when foreground is not node/nodejs', async () => {
+      mockPlatform.mockReturnValue('darwin')
+      manager = new PtyManager()
+      manager.spawn('session-1', '/home/user')
+      getPtyMock().process = 'zsh'
+
+      await expect(manager.getForegroundProcess('session-1')).resolves.toBeNull()
+      expect(mockExecAsync).not.toHaveBeenCalled()
+    })
+
+    it('caches macOS ps fallback results briefly', async () => {
+      mockPlatform.mockReturnValue('darwin')
+      manager = new PtyManager()
+      manager.spawn('session-1', '/home/user')
+      getPtyMock().process = 'node'
+      mockExecAsync
+        .mockResolvedValueOnce({ stdout: '23456\n' })
+        .mockResolvedValueOnce({ stdout: '/usr/local/bin/node /usr/local/bin/codex\n' })
+
+      await expect(manager.getForegroundProcess('session-1')).resolves.toBe('codex')
+      await expect(manager.getForegroundProcess('session-1')).resolves.toBe('codex')
+      expect(mockExecAsync).toHaveBeenCalledTimes(2)
     })
   })
 

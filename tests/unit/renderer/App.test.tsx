@@ -4,6 +4,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 
 const mockUseSessions = vi.fn()
 const mockUseKeyboardShortcuts = vi.fn()
+const mockUseInputWaiting = vi.fn()
 const focusTerminalBySession = new Map<string, ReturnType<typeof vi.fn>>()
 
 let capturedShortcuts: {
@@ -31,9 +32,17 @@ vi.mock('@renderer/hooks/useKeyboardShortcuts', () => ({
   },
 }))
 
+vi.mock('@renderer/hooks/useInputWaiting', () => ({
+  useInputWaiting: (...args: any[]) => mockUseInputWaiting(...args),
+}))
+
 vi.mock('@renderer/components/layout/TabBar', () => ({
-  TabBar: ({ sessions, activeSessionId, onTabSelect, onTabClose, onNewTab }: any) => (
-    <div data-testid="mock-tabbar" data-active-id={activeSessionId ?? ''}>
+  TabBar: ({ sessions, activeSessionId, waitingSessionIds, onTabSelect, onTabClose, onNewTab }: any) => (
+    <div
+      data-testid="mock-tabbar"
+      data-active-id={activeSessionId ?? ''}
+      data-waiting={Array.from(waitingSessionIds).join(',')}
+    >
       <button data-testid="tabbar-new-tab" onClick={onNewTab}>New tab</button>
       {sessions.map((session: any) => (
         <button
@@ -105,6 +114,7 @@ describe('App', () => {
     vi.clearAllMocks()
     capturedShortcuts = null
     focusTerminalBySession.clear()
+    mockUseInputWaiting.mockReturnValue(new Set())
 
     mockUseSessions.mockReturnValue({
       sessions: [
@@ -134,6 +144,14 @@ describe('App', () => {
     expect(screen.getByTestId('session-s1')).toHaveAttribute('data-active', 'false')
     expect(screen.getByTestId('session-s2')).toHaveAttribute('data-active', 'true')
     expect(screen.getByTestId('session-s3')).toHaveAttribute('data-active', 'false')
+  })
+
+  it('passes waiting session ids from useInputWaiting into TabBar', () => {
+    mockUseInputWaiting.mockReturnValue(new Set(['s1', 's3']))
+
+    render(<App />)
+
+    expect(screen.getByTestId('mock-tabbar')).toHaveAttribute('data-waiting', 's1,s3')
   })
 
   it('passes diff cwd/gitRootHint derived from session maps', () => {

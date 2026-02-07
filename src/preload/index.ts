@@ -53,6 +53,9 @@ const electronAPI: ElectronAPI = {
 
     getCwd: (sessionId: string): Promise<string | null> =>
       ipcRenderer.invoke('pty:getCwd', sessionId),
+
+    getForegroundProcess: (sessionId: string): Promise<string | null> =>
+      ipcRenderer.invoke(PTY_CHANNELS.GET_FOREGROUND_PROCESS, sessionId),
   },
 
   git: {

@@ -4,9 +4,11 @@ import { Tab } from '@renderer/components/layout/Tab'
 
 describe('Tab', () => {
   const defaultProps = {
+    id: 'session-1',
     name: 'project1',
     fullPath: '/home/user/project1',
     isActive: false,
+    isWaiting: false,
     onSelect: vi.fn(),
     onClose: vi.fn(),
     index: 0,
@@ -70,6 +72,13 @@ describe('Tab', () => {
     // Active tab has a gradient accent line
     const accentLine = container.querySelector('.bg-gradient-to-r')
     expect(accentLine).toBeInTheDocument()
+  })
+
+  it('shows waiting indicator when waiting in a background tab', () => {
+    const { container } = render(<Tab {...defaultProps} isWaiting={true} isActive={false} />)
+
+    const waitingDot = container.querySelector('.animate-tab-waiting')
+    expect(waitingDot).toBeInTheDocument()
   })
 
   it('applies animation delay based on index', () => {

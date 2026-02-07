@@ -6,6 +6,7 @@ import logoPng from '../../../../resources/icon.png'
 interface TabBarProps {
   sessions: Session[]
   activeSessionId: string | null
+  waitingSessionIds: Set<string>
   onTabSelect: (id: string) => void
   onTabClose: (id: string) => void
   onNewTab: () => void
@@ -14,6 +15,7 @@ interface TabBarProps {
 export function TabBar({
   sessions,
   activeSessionId,
+  waitingSessionIds,
   onTabSelect,
   onTabClose,
   onNewTab,
@@ -149,6 +151,7 @@ export function TabBar({
             name={session.name}
             fullPath={session.cwd}
             isActive={session.id === activeSessionId}
+            isWaiting={waitingSessionIds.has(session.id)}
             onSelect={onTabSelect}
             onClose={onTabClose}
             index={index}

@@ -76,4 +76,10 @@ export function registerPtyHandlers(ipcMain: IpcMain) {
     assertNonEmptyString(sessionId, 'sessionId', MAX_SESSION_ID_LENGTH)
     return ptyManager.getCwd(sessionId)
   })
+
+  ipcMain.handle(PTY_CHANNELS.GET_FOREGROUND_PROCESS, (event, sessionId: string) => {
+    if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')
+    assertNonEmptyString(sessionId, 'sessionId', MAX_SESSION_ID_LENGTH)
+    return ptyManager.getForegroundProcess(sessionId)
+  })
 }

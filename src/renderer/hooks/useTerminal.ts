@@ -13,7 +13,7 @@ interface UseTerminalOptions {
 }
 
 interface UseTerminalReturn {
-  terminalRef: React.RefObject<HTMLDivElement>
+  terminalRef: React.RefObject<HTMLDivElement | null>
   focus: () => void
 }
 

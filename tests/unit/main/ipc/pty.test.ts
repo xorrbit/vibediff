@@ -9,6 +9,7 @@ const {
   mockResize,
   mockKill,
   mockGetCwd,
+  mockGetForegroundProcess,
 } = vi.hoisted(() => ({
   mockValidateIpcSender: vi.fn(() => true),
   mockSendToRenderer: vi.fn(),
@@ -17,6 +18,7 @@ const {
   mockResize: vi.fn(),
   mockKill: vi.fn(),
   mockGetCwd: vi.fn(),
+  mockGetForegroundProcess: vi.fn(),
 }))
 
 vi.mock('@main/security/validate-sender', () => ({
@@ -38,6 +40,7 @@ vi.mock('@main/services/pty-manager', () => ({
     this.resize = mockResize
     this.kill = mockKill
     this.getCwd = mockGetCwd
+    this.getForegroundProcess = mockGetForegroundProcess
   }),
 }))
 
@@ -183,5 +186,18 @@ describe('registerPtyHandlers', () => {
     mockValidateIpcSender.mockReturnValue(true)
     mockGetCwd.mockReturnValue('/work/current')
     expect(cwdHandler({ sender: {} }, 'session-a')).toBe('/work/current')
+  })
+
+  it('rejects unauthorized foreground-process requests and returns value for valid requests', () => {
+    const { ipcMain, handles } = createIpcMainMock()
+    registerPtyHandlers(ipcMain)
+    const foregroundHandler = handles.get(PTY_CHANNELS.GET_FOREGROUND_PROCESS)!
+
+    mockValidateIpcSender.mockReturnValue(false)
+    expect(() => foregroundHandler({ sender: {} }, 'session-a')).toThrow('Unauthorized IPC sender')
+
+    mockValidateIpcSender.mockReturnValue(true)
+    mockGetForegroundProcess.mockReturnValue('claude')
+    expect(foregroundHandler({ sender: {} }, 'session-a')).toBe('claude')
   })
 })

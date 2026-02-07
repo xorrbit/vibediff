@@ -15,6 +15,7 @@ describe('TabBar', () => {
       <TabBar
         sessions={mockSessions}
         activeSessionId="1"
+        waitingSessionIds={new Set()}
         onTabSelect={vi.fn()}
         onTabClose={vi.fn()}
         onNewTab={vi.fn()}
@@ -33,6 +34,7 @@ describe('TabBar', () => {
       <TabBar
         sessions={mockSessions}
         activeSessionId="1"
+        waitingSessionIds={new Set()}
         onTabSelect={onTabSelect}
         onTabClose={vi.fn()}
         onNewTab={vi.fn()}
@@ -50,6 +52,7 @@ describe('TabBar', () => {
       <TabBar
         sessions={mockSessions}
         activeSessionId="1"
+        waitingSessionIds={new Set()}
         onTabSelect={vi.fn()}
         onTabClose={onTabClose}
         onNewTab={vi.fn()}
@@ -77,6 +80,7 @@ describe('TabBar', () => {
       <TabBar
         sessions={mockSessions}
         activeSessionId="1"
+        waitingSessionIds={new Set()}
         onTabSelect={vi.fn()}
         onTabClose={vi.fn()}
         onNewTab={onNewTab}
@@ -94,6 +98,7 @@ describe('TabBar', () => {
       <TabBar
         sessions={mockSessions}
         activeSessionId="1"
+        waitingSessionIds={new Set()}
         onTabSelect={vi.fn()}
         onTabClose={vi.fn()}
         onNewTab={vi.fn()}
@@ -119,6 +124,7 @@ describe('TabBar', () => {
       <TabBar
         sessions={mockSessions}
         activeSessionId="2"
+        waitingSessionIds={new Set()}
         onTabSelect={vi.fn()}
         onTabClose={vi.fn()}
         onNewTab={vi.fn()}
@@ -138,6 +144,7 @@ describe('TabBar', () => {
       <TabBar
         sessions={[]}
         activeSessionId={null}
+        waitingSessionIds={new Set()}
         onTabSelect={vi.fn()}
         onTabClose={vi.fn()}
         onNewTab={vi.fn()}
@@ -154,6 +161,7 @@ describe('TabBar', () => {
       <TabBar
         sessions={mockSessions}
         activeSessionId="1"
+        waitingSessionIds={new Set()}
         onTabSelect={vi.fn()}
         onTabClose={vi.fn()}
         onNewTab={vi.fn()}
@@ -169,6 +177,7 @@ describe('TabBar', () => {
       <TabBar
         sessions={mockSessions}
         activeSessionId="1"
+        waitingSessionIds={new Set()}
         onTabSelect={vi.fn()}
         onTabClose={vi.fn()}
         onNewTab={vi.fn()}
@@ -194,6 +203,7 @@ describe('TabBar', () => {
       <TabBar
         sessions={manySessions}
         activeSessionId="session-0"
+        waitingSessionIds={new Set()}
         onTabSelect={vi.fn()}
         onTabClose={vi.fn()}
         onNewTab={vi.fn()}
@@ -203,5 +213,21 @@ describe('TabBar', () => {
     // All tabs should be rendered
     expect(screen.getByText('project0')).toBeInTheDocument()
     expect(screen.getByText('project19')).toBeInTheDocument()
+  })
+
+  it('shows waiting indicator for non-active tabs in waitingSessionIds', () => {
+    const { container } = render(
+      <TabBar
+        sessions={mockSessions}
+        activeSessionId="1"
+        waitingSessionIds={new Set(['2'])}
+        onTabSelect={vi.fn()}
+        onTabClose={vi.fn()}
+        onNewTab={vi.fn()}
+      />
+    )
+
+    const waitingDot = container.querySelector('.animate-tab-waiting')
+    expect(waitingDot).toBeInTheDocument()
   })
 })

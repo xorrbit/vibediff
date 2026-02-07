@@ -1,14 +1,16 @@
 import * as pty from 'node-pty'
 import { app } from 'electron'
 import { platform } from 'os'
-import { existsSync, readlinkSync, lstatSync, mkdirSync, writeFileSync } from 'fs'
-import { join } from 'path'
+import { existsSync, readlinkSync, lstatSync, mkdirSync, writeFileSync, readFileSync } from 'fs'
+import { basename, join } from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { detectShell, getShellName } from './shell'
 import { debugLog } from '../logger'
 
 const execFileAsync = promisify(execFile)
+const AI_PROCESS_NAMES = ['claude', 'codex'] as const
+const AI_PROCESS_NAME_SET = new Set<string>(AI_PROCESS_NAMES)
 
 interface PtyCallbacks {
   onData: (data: string) => void
@@ -26,6 +28,11 @@ interface CwdCache {
   timestamp: number
 }
 
+interface ForegroundProcessCache {
+  processName: string | null
+  timestamp: number
+}
+
 // Regex to match OSC 7 escape sequences: \e]7;file://hostname/path\a or \e]7;file://hostname/path\e\\
 // eslint-disable-next-line no-control-regex -- terminal escape sequences intentionally use control characters
 const OSC7_REGEX = /\x1b\]7;file:\/\/[^/]*(\/[^\x07\x1b]*?)(?:\x07|\x1b\\)/
@@ -33,6 +40,71 @@ const OSC7_REGEX = /\x1b\]7;file:\/\/[^/]*(\/[^\x07\x1b]*?)(?:\x07|\x1b\\)/
 interface ShellIntegration {
   args: string[]
   env: Record<string, string>
+}
+
+function normalizeProcessName(arg: string | undefined): string | null {
+  if (!arg) return null
+  const trimmed = arg.trim().replace(/^['"]|['"]$/g, '')
+  if (!trimmed) return null
+  return basename(trimmed).toLowerCase()
+}
+
+function matchAIProcess(command: string): string | null {
+  if (!command) return null
+  const args = command
+    .split('\0')
+    .map((arg) => arg.trim())
+    .filter((arg) => arg.length > 0)
+  if (args.length === 0) return null
+
+  const first = normalizeProcessName(args[0])
+  if (first && AI_PROCESS_NAME_SET.has(first)) {
+    return first
+  }
+
+  if (first === 'node' || first === 'nodejs') {
+    const second = normalizeProcessName(args[1])
+    if (second && AI_PROCESS_NAME_SET.has(second)) {
+      return second
+    }
+  }
+
+  return null
+}
+
+function matchAIProcessFromPsArgs(command: string): string | null {
+  if (!command) return null
+  const args = command.trim().split(/\s+/).filter((arg) => arg.length > 0)
+  if (args.length === 0) return null
+
+  const first = normalizeProcessName(args[0])
+  if (first && AI_PROCESS_NAME_SET.has(first)) {
+    return first
+  }
+
+  if (first === 'node' || first === 'nodejs') {
+    const second = normalizeProcessName(args[1])
+    if (second && AI_PROCESS_NAME_SET.has(second)) {
+      return second
+    }
+  }
+
+  return null
+}
+
+function parseLinuxTpgid(statContent: string): number | null {
+  const commandEnd = statContent.lastIndexOf(')')
+  if (commandEnd === -1) return null
+
+  const remainingFields = statContent
+    .slice(commandEnd + 1)
+    .trim()
+    .split(/\s+/)
+  // /proc/<pid>/stat fields after comm:
+  // 3: state, 4: ppid, 5: pgrp, 6: session, 7: tty_nr, 8: tpgid
+  const tpgid = Number.parseInt(remainingFields[5] ?? '', 10)
+  if (!Number.isFinite(tpgid) || tpgid <= 0) return null
+  return tpgid
 }
 
 function getIntegrationDir(): string {
@@ -113,7 +185,9 @@ export class PtyManager {
   private instances: Map<string, PtyInstance> = new Map()
   // Cache CWD results to avoid repeated lsof calls
   private cwdCache: Map<string, CwdCache> = new Map()
+  private foregroundProcessCache: Map<string, ForegroundProcessCache> = new Map()
   private static CWD_CACHE_TTL = 2000 // 2 seconds
+  private static FOREGROUND_PROCESS_CACHE_TTL = 2000 // 2 seconds
   private integrationReady = false
 
   private ensureIntegration(): void {
@@ -199,6 +273,7 @@ export class PtyManager {
       instance.callbacks.onExit(exitCode)
       this.instances.delete(sessionId)
       this.cwdCache.delete(sessionId)
+      this.foregroundProcessCache.delete(sessionId)
     })
 
     this.instances.set(sessionId, instance)
@@ -233,6 +308,7 @@ export class PtyManager {
       instance.pty.kill()
       this.instances.delete(sessionId)
       this.cwdCache.delete(sessionId)
+      this.foregroundProcessCache.delete(sessionId)
     }
   }
 
@@ -301,5 +377,81 @@ export class PtyManager {
     }
 
     return cwd
+  }
+
+  /**
+   * Get the foreground process for a PTY session.
+   * Returns only known AI assistant process names (`claude` / `codex`), otherwise null.
+   */
+  async getForegroundProcess(sessionId: string): Promise<string | null> {
+    const instance = this.instances.get(sessionId)
+    if (!instance) return null
+
+    // Fast path when node-pty already resolves the foreground process name.
+    const quickMatch = matchAIProcess(instance.pty.process)
+    if (quickMatch) return quickMatch
+
+    const shellPid = instance.pty.pid
+    if (!shellPid) return null
+
+    const os = platform()
+
+    if (os === 'linux') {
+      try {
+        const statContent = readFileSync(`/proc/${shellPid}/stat`, 'utf8')
+        const tpgid = parseLinuxTpgid(statContent)
+        if (!tpgid || tpgid === shellPid) return null
+
+        const foregroundCmdline = readFileSync(`/proc/${tpgid}/cmdline`, 'utf8')
+        return matchAIProcess(foregroundCmdline)
+      } catch {
+        return null
+      }
+    }
+
+    if (os === 'darwin') {
+      const processName = normalizeProcessName(instance.pty.process)
+      if (processName !== 'node' && processName !== 'nodejs') {
+        return null
+      }
+
+      const cached = this.foregroundProcessCache.get(sessionId)
+      if (cached && Date.now() - cached.timestamp < PtyManager.FOREGROUND_PROCESS_CACHE_TTL) {
+        return cached.processName
+      }
+
+      const detected = await this.getForegroundProcessViaPs(shellPid)
+      this.foregroundProcessCache.set(sessionId, {
+        processName: detected,
+        timestamp: Date.now(),
+      })
+      return detected
+    }
+
+    return null
+  }
+
+  private async getForegroundProcessViaPs(shellPid: number): Promise<string | null> {
+    try {
+      const { stdout: tpgidOutput } = await execFileAsync(
+        'ps',
+        ['-o', 'tpgid=', '-p', String(shellPid)],
+        { timeout: 2000 }
+      )
+
+      const tpgid = Number.parseInt(tpgidOutput.trim(), 10)
+      if (!Number.isFinite(tpgid) || tpgid <= 0 || tpgid === shellPid) {
+        return null
+      }
+
+      const { stdout: argsOutput } = await execFileAsync(
+        'ps',
+        ['-o', 'args=', '-p', String(tpgid)],
+        { timeout: 2000 }
+      )
+      return matchAIProcessFromPsArgs(argsOutput)
+    } catch {
+      return null
+    }
   }
 }

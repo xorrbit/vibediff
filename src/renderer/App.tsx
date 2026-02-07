@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { SessionProvider } from './context/SessionContext'
 import { useSessions } from './hooks/useSessions'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useInputWaiting } from './hooks/useInputWaiting'
 import { TabBar } from './components/layout/TabBar'
 import { Session, SessionHandle } from './components/layout/Session'
 import { EmptyState } from './components/common/EmptyState'
@@ -17,6 +18,7 @@ function AppContent() {
     closeSession,
     setActiveSession,
   } = useSessions()
+  const waitingIds = useInputWaiting(sessions, activeSessionId)
 
   const [showHelp, setShowHelp] = useState(false)
   const sessionRefs = useRef<Map<string, SessionHandle>>(new Map())
@@ -104,6 +106,7 @@ function AppContent() {
       <TabBar
         sessions={sessions}
         activeSessionId={activeSessionId}
+        waitingSessionIds={waitingIds}
         onTabSelect={setActiveSession}
         onTabClose={closeSession}
         onNewTab={createSession}
