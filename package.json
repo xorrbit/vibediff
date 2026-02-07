@@ -12,7 +12,7 @@
     "postinstall": "electron-rebuild -f -w node-pty",
     "package": "electron-builder",
     "package:mac": "electron-builder --mac",
-    "package:win": "electron-builder --win",
+    "package:win": "electron-builder --win --x64",
     "package:win-arm64": "electron-builder --win --arm64",
     "package:linux": "electron-builder --linux",
     "package:linux-arm64": "electron-builder --linux --arm64",

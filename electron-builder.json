@@ -27,12 +27,7 @@
     "entitlementsInherit": "resources/entitlements.mac.plist"
   },
   "win": {
-    "target": [
-      {
-        "target": "nsis",
-        "arch": ["x64"]
-      }
-    ],
+    "target": "nsis",
     "icon": "resources/icons/icon.ico"
   },
   "linux": {
