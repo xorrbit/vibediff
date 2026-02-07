@@ -20,11 +20,12 @@ Document current test coverage gaps and define specific tests to add. This file 
   - Gap 9: Added/expanded security utility edge tests:
     - `tests/unit/main/security/path-utils.test.ts`
     - `tests/unit/main/security/trusted-renderer.test.ts` (expanded)
-  - Gap 4 (partial): Replaced weak/no-op E2E assertions and tightened launch gating:
-    - `tests/e2e/diff.spec.ts` (state visibility checks replace always-pass assertions)
-    - `tests/e2e/tabs.spec.ts` (tab count increments asserted for double-click and `Ctrl+T`)
-    - `tests/e2e/terminal.spec.ts` (terminal output/text change asserted after deterministic command)
-    - `tests/e2e/app.spec.ts` + launch args updates (explicit `ELECTRON_TEST` gating + no-sandbox launch args)
+  - Gap 4: Completed E2E signal hardening and launch prerequisite handling:
+    - `tests/e2e/electron.ts` (shared launcher with deterministic fixture profiles + strict CI prerequisite failure mode)
+    - `tests/e2e/app.spec.ts` (shared launcher adoption + strict/skip behavior)
+    - `tests/e2e/tabs.spec.ts` (shared launcher adoption + strict/skip behavior)
+    - `tests/e2e/terminal.spec.ts` (shared launcher adoption + strict/skip behavior)
+    - `tests/e2e/diff.spec.ts` (deterministic dirty-git fixture assertions + removal of remaining no-op checks)
   - Gap 5: Added `useTerminal` behavioral harness tests:
     - `tests/unit/renderer/hooks/useTerminal.test.tsx`
     - Covered: real ref container dimensions, init/spawn/resize flow, context menu actions, PTY data/exit, cleanup (`unsubscribe`, `kill`, `dispose`).
@@ -41,14 +42,15 @@ Document current test coverage gaps and define specific tests to add. This file 
     - `src/renderer/context/SessionContext.tsx` (small no-churn update for unchanged session names on `onCwdChanged`)
     - Covered: home-dir fallback, hidden-tab poll suppression, visibility-triggered refresh, `onCwdChanged` map/name updates, unchanged-value no-op behavior.
 - In progress:
-  - Gap 4 (remaining): deterministic E2E fixtures/mocks and stricter CI prerequisite failure signaling.
   - Coverage config follow-up: revisit coverage filters and thresholds for `src/main/*` now that main-process tests are in place.
-  - `2026-02-07` verification run: `npm run test:unit` passed (`36` files, `481` tests).
+  - `2026-02-07` verification run:
+    - `npm run test:unit` passed (`36` files, `481` tests).
+    - `npm run test:e2e` currently skips locally when launch prerequisites are unavailable (expected outside configured Electron E2E profile).
 
 ## Current Coverage Snapshot
 - Unit tests are concentrated in renderer hooks/components and main service classes.
 - Main-process startup, IPC wiring modules, preload bridge, and security helpers now have direct unit coverage.
-- E2E assertions were strengthened, but deterministic fixture/mocking work remains for higher signal and lower flake risk.
+- E2E harness now supports deterministic fixture home directories and strict CI prereq failures; local non-E2E runs skip by design when prerequisites are not met.
 - `vitest` coverage still excludes `src/main/**/*`; thresholds/filter follow-up remains open (`vitest.config.ts:12`).
 
 ## Priority Model

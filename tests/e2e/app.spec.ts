@@ -1,6 +1,5 @@
 import { test, expect, ElectronApplication, Page } from '@playwright/test'
-import { _electron as electron } from '@playwright/test'
-import { join } from 'path'
+import { launchElectron, closeElectron, shouldFailOnMissingPrereqs } from './electron'
 
 let electronApp: ElectronApplication
 let page: Page
@@ -8,39 +7,25 @@ let launchError: Error | null = null
 
 test.describe('App Launch', () => {
   const skipIfLaunchUnavailable = () => {
-    if (launchError || !page) test.skip()
+    if (launchError || !page) test.skip(launchError?.message || 'Electron launch unavailable')
   }
 
   test.beforeAll(async () => {
-    if (!process.env.ELECTRON_TEST) {
-      launchError = new Error('Set ELECTRON_TEST=1 to run Electron E2E tests')
+    const launched = await launchElectron({ fixture: 'empty-home' })
+    if ('error' in launched) {
+      launchError = launched.error
+      if (shouldFailOnMissingPrereqs()) {
+        throw launchError
+      }
       return
     }
 
-    const mainPath = join(__dirname, '../../dist/main/index.js')
-
-    try {
-      electronApp = await electron.launch({
-        args: ['--no-sandbox', mainPath],
-        env: {
-          ...process.env,
-          NODE_ENV: 'test',
-          ELECTRON_DISABLE_SANDBOX: '1',
-        },
-      })
-
-      page = await electronApp.firstWindow()
-      await page.waitForLoadState('domcontentloaded')
-    } catch (error) {
-      console.warn('Electron launch failed, skipping E2E tests:', error)
-      launchError = error instanceof Error ? error : new Error(String(error))
-    }
+    electronApp = launched.app
+    page = launched.page
   })
 
   test.afterAll(async () => {
-    if (electronApp) {
-      await electronApp.close()
-    }
+    await closeElectron()
   })
 
   test('app opens without errors', async () => {
