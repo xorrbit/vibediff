@@ -194,17 +194,15 @@ describe('useTerminal', () => {
     terminal.getSelection.mockReturnValue('selected text')
 
     fireEvent.contextMenu(screen.getByTestId('terminal-container'))
-    expect(window.electronAPI.terminal.showContextMenu).toHaveBeenCalledWith(true)
+    expect(window.electronAPI.terminal.showContextMenu).toHaveBeenCalledWith(true, 'selected text')
 
     await act(async () => {
-      contextActionHandler?.('copy')
       contextActionHandler?.('paste')
       contextActionHandler?.('selectAll')
       contextActionHandler?.('clear')
       await Promise.resolve()
     })
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('selected text')
     expect(navigator.clipboard.readText).toHaveBeenCalled()
     expect(terminal.paste).toHaveBeenCalledWith('from-clipboard')
     expect(terminal.selectAll).toHaveBeenCalled()

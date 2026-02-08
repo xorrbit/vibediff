@@ -71,7 +71,7 @@ describe('preload electronAPI bridge', () => {
     await api.grammar.scan()
     await api.grammar.getOnigWasm()
 
-    api.terminal.showContextMenu(true)
+    api.terminal.showContextMenu(true, 'selected text')
     await api.shell.openExternal('https://example.com')
     api.window.minimize()
     api.window.maximize()
@@ -105,7 +105,7 @@ describe('preload electronAPI bridge', () => {
     expect(mockInvoke).toHaveBeenCalledWith(GRAMMAR_CHANNELS.SCAN)
     expect(mockInvoke).toHaveBeenCalledWith(GRAMMAR_CHANNELS.GET_ONIG_WASM)
 
-    expect(mockSend).toHaveBeenCalledWith(TERMINAL_MENU_CHANNELS.SHOW, true)
+    expect(mockSend).toHaveBeenCalledWith(TERMINAL_MENU_CHANNELS.SHOW, true, 'selected text')
     expect(mockInvoke).toHaveBeenCalledWith('shell:openExternal', 'https://example.com')
     expect(mockSend).toHaveBeenCalledWith('window:minimize')
     expect(mockSend).toHaveBeenCalledWith('window:maximize')

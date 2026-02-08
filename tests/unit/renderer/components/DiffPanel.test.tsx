@@ -224,19 +224,19 @@ describe('DiffPanel', () => {
 
       render(<DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} />)
 
-      const viewModeButton = screen.getByTitle('View: Automatic')
+      const viewModeButton = screen.getByTitle('View: Unified')
       const diffView = screen.getByTestId('mock-diff-view')
 
-      expect(diffView).toHaveAttribute('data-view-mode', 'auto')
+      expect(diffView).toHaveAttribute('data-view-mode', 'unified')
 
       fireEvent.click(viewModeButton)
-      expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'unified')
-
-      fireEvent.click(screen.getByTitle('View: Unified'))
       expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'split')
 
       fireEvent.click(screen.getByTitle('View: Split'))
       expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'auto')
+
+      fireEvent.click(screen.getByTitle('View: Automatic'))
+      expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'unified')
       expect(onFocusTerminal).toHaveBeenCalledTimes(3)
     })
 
