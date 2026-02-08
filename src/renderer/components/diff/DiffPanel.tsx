@@ -44,6 +44,8 @@ export const DiffPanel = memo(function DiffPanel({
   // Vertical resize — drag bottom edge to change max height
   const [fileListHeight, setFileListHeight] = useState<number | null>(null)
   const [isResizingHeight, setIsResizingHeight] = useState(false)
+  const [isHeightCollapsed, setIsHeightCollapsed] = useState(false)
+  const savedHeightRef = useRef<number | null | 'default'>(null)
   const fileListPanelRef = useRef<HTMLDivElement>(null)
   const heightRafRef = useRef<number | null>(null)
   const pendingHeightRef = useRef<number | null>(null)
@@ -62,6 +64,22 @@ export const DiffPanel = memo(function DiffPanel({
     setIsCollapsed(prev => !prev)
     onFocusTerminal?.()
   }, [onFocusTerminal])
+
+  const COLLAPSED_HEIGHT = 56
+  const toggleHeightCollapsed = useCallback(() => {
+    setIsHeightCollapsed(prev => {
+      if (!prev) {
+        // Collapsing — save current height
+        savedHeightRef.current = fileListHeight ?? 'default'
+      } else {
+        // Expanding — restore saved height
+        const saved = savedHeightRef.current
+        setFileListHeight(saved === 'default' ? null : saved)
+      }
+      return !prev
+    })
+    onFocusTerminal?.()
+  }, [fileListHeight, onFocusTerminal])
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -204,10 +222,10 @@ export const DiffPanel = memo(function DiffPanel({
                    border-l border-b border-white/[0.06]
                    shadow-2xl
                    overflow-hidden
-                   transition-[width] duration-200 ease-out"
+                   transition-[width,max-height] duration-200 ease-out"
         style={{
           width: isCollapsed ? COLLAPSED_WIDTH : fileListWidth,
-          maxHeight: fileListHeight ?? '50%',
+          maxHeight: isHeightCollapsed ? COLLAPSED_HEIGHT : (fileListHeight ?? '50%'),
         }}
       >
         {/* Left-edge resize handle — only when expanded */}
@@ -275,17 +293,35 @@ export const DiffPanel = memo(function DiffPanel({
           </div>
         </div>
 
-        {/* File list - scrollable */}
-        <div className="flex-1 overflow-y-auto min-h-0">
-          <FileList
-            files={files}
-            selectedFile={selectedFile}
-            onSelectFile={handleSelectFile}
-            isLoading={isLoading}
-            isCollapsed={isCollapsed}
-            isGitRepo={gitRoot !== null}
-          />
-        </div>
+        {/* File list - scrollable (hidden when height-collapsed) */}
+        {!isHeightCollapsed && (
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <FileList
+              files={files}
+              selectedFile={selectedFile}
+              onSelectFile={handleSelectFile}
+              isLoading={isLoading}
+              isCollapsed={isCollapsed}
+              isGitRepo={gitRoot !== null}
+            />
+          </div>
+        )}
+
+        {/* Height collapse/expand button */}
+        {!isCollapsed && (
+          <button
+            className="flex-shrink-0 w-full flex items-center justify-center py-0.5
+                       text-obsidian-text-ghost hover:text-obsidian-text-muted
+                       hover:bg-white/[0.03] transition-colors duration-150"
+            onClick={toggleHeightCollapsed}
+            title={isHeightCollapsed ? 'Expand file list' : 'Collapse file list'}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d={isHeightCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
+            </svg>
+          </button>
+        )}
 
         {/* Bottom-edge resize handle */}
         {!isCollapsed && (
