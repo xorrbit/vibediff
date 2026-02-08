@@ -191,6 +191,11 @@ body {
 
 .xterm-container .xterm-viewport {
   background: transparent !important;
+  direction: rtl;
+}
+
+.xterm-container .xterm-viewport > * {
+  direction: ltr;
 }
 
 /* Prevent text selection during resize */
