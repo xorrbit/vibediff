@@ -7,7 +7,7 @@ interface TabProps {
   isActive: boolean
   isWaiting: boolean
   onSelect: (id: string) => void
-  onClose: (id: string) => void
+  onClose: (id: string) => void | Promise<void>
   index: number
 }
 

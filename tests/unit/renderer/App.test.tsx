@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 
 const mockUseSessions = vi.fn()
 const mockUseKeyboardShortcuts = vi.fn()
@@ -103,6 +103,17 @@ vi.mock('@renderer/components/common/HelpOverlay', () => ({
   ),
 }))
 
+vi.mock('@renderer/components/common/ConfirmDialog', () => ({
+  ConfirmDialog: ({ isOpen, title, message, onConfirm, onCancel }: any) => (
+    isOpen ? (
+      <div data-testid="mock-confirm-dialog" data-title={title} data-message={message}>
+        <button data-testid="mock-confirm-yes" onClick={onConfirm}>Confirm</button>
+        <button data-testid="mock-confirm-no" onClick={onCancel}>Cancel</button>
+      </div>
+    ) : null
+  ),
+}))
+
 import App from '@renderer/App'
 
 describe('App', () => {
@@ -192,7 +203,10 @@ describe('App', () => {
     expect(screen.queryByTestId('mock-help-overlay')).not.toBeInTheDocument()
   })
 
-  it('routes keyboard shortcuts to session actions', () => {
+  it('routes keyboard shortcuts to session actions', async () => {
+    // No AI process running — close should go through immediately
+    window.electronAPI.pty.getForegroundProcess.mockResolvedValue(null)
+
     render(<App />)
 
     act(() => {
@@ -202,7 +216,9 @@ describe('App', () => {
     })
 
     expect(createSession).toHaveBeenCalledTimes(1)
-    expect(closeSession).toHaveBeenCalledWith('s2')
+    await waitFor(() => {
+      expect(closeSession).toHaveBeenCalledWith('s2')
+    })
     expect(setActiveSession).toHaveBeenCalledWith('s1')
   })
 
@@ -224,5 +240,144 @@ describe('App', () => {
     expect(setActiveSession).toHaveBeenCalledWith('s1')
     expect(focusTerminalBySession.get('s3')).toHaveBeenCalledTimes(1)
     expect(focusTerminalBySession.get('s1')).toHaveBeenCalledTimes(1)
+  })
+
+  describe('close confirmation for AI processes', () => {
+    it('shows confirmation dialog when closing a tab running claude', async () => {
+      window.electronAPI.pty.getForegroundProcess.mockResolvedValue('claude')
+
+      render(<App />)
+
+      fireEvent.click(screen.getByTestId('tabbar-close-s2'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-confirm-dialog')).toBeInTheDocument()
+      })
+
+      expect(closeSession).not.toHaveBeenCalled()
+    })
+
+    it('shows confirmation dialog when closing a tab running codex', async () => {
+      window.electronAPI.pty.getForegroundProcess.mockResolvedValue('codex')
+
+      render(<App />)
+
+      fireEvent.click(screen.getByTestId('tabbar-close-s1'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-confirm-dialog')).toBeInTheDocument()
+      })
+
+      expect(closeSession).not.toHaveBeenCalled()
+    })
+
+    it('closes tab immediately when no AI process is running', async () => {
+      window.electronAPI.pty.getForegroundProcess.mockResolvedValue(null)
+
+      render(<App />)
+
+      fireEvent.click(screen.getByTestId('tabbar-close-s2'))
+
+      await waitFor(() => {
+        expect(closeSession).toHaveBeenCalledWith('s2')
+      })
+
+      expect(screen.queryByTestId('mock-confirm-dialog')).not.toBeInTheDocument()
+    })
+
+    it('closes tab immediately when a non-AI process is running', async () => {
+      window.electronAPI.pty.getForegroundProcess.mockResolvedValue('bash')
+
+      render(<App />)
+
+      fireEvent.click(screen.getByTestId('tabbar-close-s2'))
+
+      await waitFor(() => {
+        expect(closeSession).toHaveBeenCalledWith('s2')
+      })
+
+      expect(screen.queryByTestId('mock-confirm-dialog')).not.toBeInTheDocument()
+    })
+
+    it('closes tab when user confirms the dialog', async () => {
+      window.electronAPI.pty.getForegroundProcess.mockResolvedValue('claude')
+
+      render(<App />)
+
+      fireEvent.click(screen.getByTestId('tabbar-close-s2'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-confirm-dialog')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByTestId('mock-confirm-yes'))
+
+      expect(closeSession).toHaveBeenCalledWith('s2')
+      expect(screen.queryByTestId('mock-confirm-dialog')).not.toBeInTheDocument()
+    })
+
+    it('does not close tab when user cancels the dialog', async () => {
+      window.electronAPI.pty.getForegroundProcess.mockResolvedValue('claude')
+
+      render(<App />)
+
+      fireEvent.click(screen.getByTestId('tabbar-close-s1'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-confirm-dialog')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByTestId('mock-confirm-no'))
+
+      expect(closeSession).not.toHaveBeenCalled()
+      expect(screen.queryByTestId('mock-confirm-dialog')).not.toBeInTheDocument()
+    })
+
+    it('dismisses confirmation dialog on Escape', async () => {
+      window.electronAPI.pty.getForegroundProcess.mockResolvedValue('codex')
+
+      render(<App />)
+
+      fireEvent.click(screen.getByTestId('tabbar-close-s2'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-confirm-dialog')).toBeInTheDocument()
+      })
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+
+      expect(closeSession).not.toHaveBeenCalled()
+      expect(screen.queryByTestId('mock-confirm-dialog')).not.toBeInTheDocument()
+    })
+
+    it('shows confirmation via Ctrl+W shortcut when AI process is running', async () => {
+      window.electronAPI.pty.getForegroundProcess.mockResolvedValue('claude')
+
+      render(<App />)
+
+      act(() => {
+        capturedShortcuts?.onCloseTab()
+      })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-confirm-dialog')).toBeInTheDocument()
+      })
+
+      expect(closeSession).not.toHaveBeenCalled()
+    })
+
+    it('closes tab immediately when process detection fails', async () => {
+      window.electronAPI.pty.getForegroundProcess.mockRejectedValue(new Error('IPC error'))
+
+      render(<App />)
+
+      fireEvent.click(screen.getByTestId('tabbar-close-s2'))
+
+      await waitFor(() => {
+        expect(closeSession).toHaveBeenCalledWith('s2')
+      })
+
+      expect(screen.queryByTestId('mock-confirm-dialog')).not.toBeInTheDocument()
+    })
   })
 })

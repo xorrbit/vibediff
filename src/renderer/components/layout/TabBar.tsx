@@ -9,7 +9,7 @@ interface TabBarProps {
   waitingSessionIds: Set<string>
   automationEnabled?: boolean
   onTabSelect: (id: string) => void
-  onTabClose: (id: string) => void
+  onTabClose: (id: string) => void | Promise<void>
   onNewTab: () => void
 }
 

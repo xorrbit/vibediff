@@ -7,6 +7,7 @@ import { TabBar } from './components/layout/TabBar'
 import { Session, SessionHandle } from './components/layout/Session'
 import { EmptyState } from './components/common/EmptyState'
 import { HelpOverlay } from './components/common/HelpOverlay'
+import { ConfirmDialog } from './components/common/ConfirmDialog'
 
 function AppContent() {
   const {
@@ -22,6 +23,7 @@ function AppContent() {
 
   const [showHelp, setShowHelp] = useState(false)
   const [automationEnabled, setAutomationEnabled] = useState(false)
+  const [pendingCloseSessionId, setPendingCloseSessionId] = useState<string | null>(null)
   const sessionRefs = useRef<Map<string, SessionHandle>>(new Map())
   // Stable ref callbacks — one per session, cached so Session memo isn't broken
   const refCallbacks = useRef<Map<string, (handle: SessionHandle | null) => void>>(new Map())
@@ -72,16 +74,43 @@ function AppContent() {
     [sessions, setActiveSession]
   )
 
+  const guardedCloseSession = useCallback(async (id: string) => {
+    try {
+      const processName = await window.electronAPI.pty.getForegroundProcess(id)
+      if (processName === 'claude' || processName === 'codex') {
+        setPendingCloseSessionId(id)
+        return
+      }
+    } catch {
+      // If we can't detect the process, close without prompting
+    }
+    closeSession(id)
+  }, [closeSession])
+
+  const handleConfirmClose = useCallback(() => {
+    if (pendingCloseSessionId) {
+      closeSession(pendingCloseSessionId)
+      setPendingCloseSessionId(null)
+    }
+  }, [pendingCloseSessionId, closeSession])
+
+  const handleCancelClose = useCallback(() => {
+    setPendingCloseSessionId(null)
+  }, [])
+
   const handleCloseTab = useCallback(() => {
     if (activeSessionId) {
-      closeSession(activeSessionId)
+      guardedCloseSession(activeSessionId)
     }
-  }, [activeSessionId, closeSession])
+  }, [activeSessionId, guardedCloseSession])
 
-  // Handle Escape to close help
+  // Handle Escape to close overlays
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && showHelp) {
+      if (e.key !== 'Escape') return
+      if (pendingCloseSessionId !== null) {
+        setPendingCloseSessionId(null)
+      } else if (showHelp) {
         setShowHelp(false)
       }
     }
@@ -89,7 +118,7 @@ function AppContent() {
     // intercept bubbling keydown events.
     window.addEventListener('keydown', handleEscape, true)
     return () => window.removeEventListener('keydown', handleEscape, true)
-  }, [showHelp])
+  }, [showHelp, pendingCloseSessionId])
 
   useEffect(() => {
     let cancelled = false
@@ -126,7 +155,7 @@ function AppContent() {
         waitingSessionIds={waitingIds}
         automationEnabled={automationEnabled}
         onTabSelect={setActiveSession}
-        onTabClose={closeSession}
+        onTabClose={guardedCloseSession}
         onNewTab={createSession}
       />
       <div className="flex-1 min-h-0 relative">
@@ -153,6 +182,13 @@ function AppContent() {
         )}
       </div>
       <HelpOverlay isOpen={showHelp} onClose={() => setShowHelp(false)} />
+      <ConfirmDialog
+        isOpen={pendingCloseSessionId !== null}
+        title="AI process running"
+        message="Claude or Codex is still running in this tab. Are you sure you want to close it?"
+        onConfirm={handleConfirmClose}
+        onCancel={handleCancelClose}
+      />
     </div>
   )
 }
