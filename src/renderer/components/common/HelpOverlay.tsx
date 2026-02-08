@@ -10,6 +10,7 @@ const shortcuts = [
   { keys: ['Ctrl', 'Shift', 'Tab'], description: 'Previous tab' },
   { keys: ['Ctrl', '1-9'], description: 'Go to tab' },
   { keys: ['Ctrl', '?'], description: 'Show this help' },
+  { keys: ['Ctrl', ','], description: 'Settings' },
 ]
 
 const isMac = typeof navigator !== 'undefined' && navigator.platform.includes('Mac')

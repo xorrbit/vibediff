@@ -202,6 +202,13 @@ function registerIpcHandlers() {
     return automationApiService.getStatus()
   })
 
+  ipcMain.handle(AUTOMATION_CHANNELS.SET_ENABLED, async (event, enabled: boolean) => {
+    if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')
+    assertBoolean(enabled, 'enabled')
+    if (!automationApiService) throw new Error('Automation API service is not available')
+    return automationApiService.setEnabled(enabled)
+  })
+
   // Directory selection dialog
   ipcMain.handle('fs:selectDirectory', async (event) => {
     if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')

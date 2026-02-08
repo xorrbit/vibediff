@@ -18,6 +18,13 @@ interface UseTerminalReturn {
   focus: () => void
 }
 
+const BASE_TERMINAL_FONT_SIZE = 13
+
+function getUiScale(): number {
+  const stored = localStorage.getItem('cdw-ui-scale')
+  return stored ? parseFloat(stored) : 1.0
+}
+
 // Obsidian Studio terminal theme - refined and warm
 const TERMINAL_THEME = {
   background: '#0a0a0b',
@@ -96,6 +103,7 @@ export function useTerminal({ sessionId, cwd, bootstrapCommands, onExit }: UseTe
     let unsubscribeExit: (() => void) | null = null
     let unsubscribeContextMenu: (() => void) | null = null
     let handleContextMenu: ((e: MouseEvent) => void) | null = null
+    let handleScaleChange: ((e: Event) => void) | null = null
 
     // Wait for container to have dimensions before initializing
     const waitForDimensions = (callback: () => void, attempts = 0) => {
@@ -121,7 +129,7 @@ export function useTerminal({ sessionId, cwd, bootstrapCommands, onExit }: UseTe
       terminal = new Terminal({
         theme: TERMINAL_THEME,
         fontFamily: '"JetBrains Mono", "SF Mono", "Fira Code", Menlo, Monaco, monospace',
-        fontSize: 13,
+        fontSize: Math.round(BASE_TERMINAL_FONT_SIZE * getUiScale()),
         lineHeight: 1.2,
         cursorBlink: true,
         cursorStyle: 'block',
@@ -160,6 +168,10 @@ export function useTerminal({ sessionId, cwd, bootstrapCommands, onExit }: UseTe
         }
         // Let Ctrl/Cmd+? (usually Ctrl/Cmd+Shift+/) open the app help overlay.
         if (isMod && (e.key === '?' || (e.key === '/' && e.shiftKey) || (e.code === 'Slash' && e.shiftKey))) {
+          return false
+        }
+        // Let Ctrl/Cmd+, open settings
+        if (isMod && e.key === ',') {
           return false
         }
         return true // Let xterm handle everything else
@@ -201,6 +213,16 @@ export function useTerminal({ sessionId, cwd, bootstrapCommands, onExit }: UseTe
             break
         }
       })
+
+      // Listen for UI scale changes to update terminal font size dynamically
+      handleScaleChange = (e: Event) => {
+        const scale = (e as CustomEvent).detail.scale
+        if (terminal) {
+          terminal.options.fontSize = Math.round(BASE_TERMINAL_FONT_SIZE * scale)
+          try { fitAddon?.fit() } catch {}
+        }
+      }
+      window.addEventListener('ui-scale-change', handleScaleChange)
 
       // Handle terminal input
       terminal.onData((data) => {
@@ -303,6 +325,7 @@ export function useTerminal({ sessionId, cwd, bootstrapCommands, onExit }: UseTe
       if (unsubscribeExit) unsubscribeExit()
       if (unsubscribeContextMenu) unsubscribeContextMenu()
       if (handleContextMenu) container.removeEventListener('contextmenu', handleContextMenu)
+      if (handleScaleChange) window.removeEventListener('ui-scale-change', handleScaleChange)
       if (resizeObserver) resizeObserver.disconnect()
       window.electronAPI.pty.kill(sessionId)
       if (terminal) terminal.dispose()

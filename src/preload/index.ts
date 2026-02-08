@@ -155,6 +155,10 @@ const electronAPI: ElectronAPI = {
     getStatus: (): Promise<AutomationStatus> => {
       return ipcRenderer.invoke(AUTOMATION_CHANNELS.GET_STATUS)
     },
+
+    setEnabled: (enabled: boolean): Promise<AutomationStatus> => {
+      return ipcRenderer.invoke(AUTOMATION_CHANNELS.SET_ENABLED, enabled)
+    },
   },
 }
 

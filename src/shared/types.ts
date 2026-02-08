@@ -81,6 +81,7 @@ export const AUTOMATION_CHANNELS = {
   BOOTSTRAP_RESULT: 'automation:bootstrapResult',
   RENDERER_READY: 'automation:rendererReady',
   GET_STATUS: 'automation:getStatus',
+  SET_ENABLED: 'automation:setEnabled',
 } as const
 
 export interface AutomationBootstrapRequest {
@@ -173,6 +174,7 @@ export interface ElectronAPI {
     sendBootstrapResult: (result: AutomationBootstrapResult) => void
     notifyRendererReady: () => void
     getStatus: () => Promise<AutomationStatus>
+    setEnabled: (enabled: boolean) => Promise<AutomationStatus>
   }
 }
 

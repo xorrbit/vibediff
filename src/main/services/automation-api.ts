@@ -186,6 +186,25 @@ export class AutomationApiService {
     })
   }
 
+  async setEnabled(enabled: boolean): Promise<AutomationApiStatus> {
+    if (enabled === this.getStatus().enabled) {
+      return this.getStatus()
+    }
+
+    // Update config on disk
+    this.config = { ...this.config, enabled }
+    this.ensureAutomationDir()
+    this.writeJsonFileAtomic(this.getConfigPath(), this.config)
+
+    if (enabled) {
+      await this.start()
+    } else {
+      await this.stop()
+    }
+
+    return this.getStatus()
+  }
+
   async stop(): Promise<void> {
     const server = this.server
     this.server = null

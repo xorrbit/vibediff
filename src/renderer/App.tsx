@@ -8,6 +8,7 @@ import { Session, SessionHandle } from './components/layout/Session'
 import { EmptyState } from './components/common/EmptyState'
 import { HelpOverlay } from './components/common/HelpOverlay'
 import { ConfirmDialog } from './components/common/ConfirmDialog'
+import { SettingsModal } from './components/common/SettingsModal'
 
 function AppContent() {
   const {
@@ -22,8 +23,32 @@ function AppContent() {
   const waitingIds = useInputWaiting(sessions, activeSessionId)
 
   const [showHelp, setShowHelp] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [automationEnabled, setAutomationEnabled] = useState(false)
   const [pendingCloseSessionId, setPendingCloseSessionId] = useState<string | null>(null)
+
+  // UI scale (persisted to localStorage, applied to root font-size)
+  const [uiScale, setUiScale] = useState(() => {
+    const stored = localStorage.getItem('cdw-ui-scale')
+    return stored ? parseFloat(stored) : 1.0
+  })
+
+  const handleUiScaleChange = useCallback((scale: number) => {
+    setUiScale(scale)
+    localStorage.setItem('cdw-ui-scale', String(scale))
+    document.documentElement.style.fontSize = `${16 * scale}px`
+    window.dispatchEvent(new CustomEvent('ui-scale-change', { detail: { scale } }))
+  }, [])
+
+  // Apply stored scale on mount
+  useEffect(() => {
+    if (uiScale !== 1.0) {
+      document.documentElement.style.fontSize = `${16 * uiScale}px`
+    }
+    return () => {
+      document.documentElement.style.fontSize = ''
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const sessionRefs = useRef<Map<string, SessionHandle>>(new Map())
   // Stable ref callbacks — one per session, cached so Session memo isn't broken
   const refCallbacks = useRef<Map<string, (handle: SessionHandle | null) => void>>(new Map())
@@ -110,6 +135,8 @@ function AppContent() {
       if (e.key !== 'Escape') return
       if (pendingCloseSessionId !== null) {
         setPendingCloseSessionId(null)
+      } else if (showSettings) {
+        setShowSettings(false)
       } else if (showHelp) {
         setShowHelp(false)
       }
@@ -118,7 +145,7 @@ function AppContent() {
     // intercept bubbling keydown events.
     window.addEventListener('keydown', handleEscape, true)
     return () => window.removeEventListener('keydown', handleEscape, true)
-  }, [showHelp, pendingCloseSessionId])
+  }, [showHelp, showSettings, pendingCloseSessionId])
 
   useEffect(() => {
     let cancelled = false
@@ -134,6 +161,11 @@ function AppContent() {
     }
   }, [])
 
+  const handleAutomationToggle = useCallback(async (enabled: boolean) => {
+    const status = await window.electronAPI.automation.setEnabled(enabled)
+    setAutomationEnabled(status.enabled)
+  }, [])
+
   useKeyboardShortcuts({
     onNewTab: createSession,
     onCloseTab: handleCloseTab,
@@ -141,6 +173,7 @@ function AppContent() {
     onPrevTab: handlePrevTab,
     onGoToTab: handleGoToTab,
     onShowHelp: () => setShowHelp(true),
+    onOpenSettings: () => setShowSettings((s) => !s),
     onTabSwitched: focusSessionTerminal,
   })
 
@@ -157,6 +190,7 @@ function AppContent() {
         onTabSelect={setActiveSession}
         onTabClose={guardedCloseSession}
         onNewTab={createSession}
+        onOpenSettings={() => setShowSettings(true)}
       />
       <div className="flex-1 min-h-0 relative">
         {sessions.length > 0 ? (
@@ -182,6 +216,14 @@ function AppContent() {
         )}
       </div>
       <HelpOverlay isOpen={showHelp} onClose={() => setShowHelp(false)} />
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        uiScale={uiScale}
+        onUiScaleChange={handleUiScaleChange}
+        automationEnabled={automationEnabled}
+        onAutomationToggle={handleAutomationToggle}
+      />
       <ConfirmDialog
         isOpen={pendingCloseSessionId !== null}
         title="AI process running"

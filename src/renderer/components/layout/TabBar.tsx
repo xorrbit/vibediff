@@ -11,6 +11,7 @@ interface TabBarProps {
   onTabSelect: (id: string) => void
   onTabClose: (id: string) => void | Promise<void>
   onNewTab: () => void
+  onOpenSettings?: () => void
 }
 
 export const TabBar = memo(function TabBar({
@@ -21,6 +22,7 @@ export const TabBar = memo(function TabBar({
   onTabSelect,
   onTabClose,
   onNewTab,
+  onOpenSettings,
 }: TabBarProps) {
   const dragStateRef = useRef<{
     startMouseX: number
@@ -179,8 +181,24 @@ export const TabBar = memo(function TabBar({
         />
       </div>
 
-      {/* Window controls */}
+      {/* Settings + Window controls */}
       <div className="flex items-center flex-shrink-0">
+        {/* Settings */}
+        <button
+          className="w-11 h-9 flex items-center justify-center text-obsidian-text-muted hover:text-obsidian-accent hover:bg-obsidian-accent-subtle transition-colors"
+          onClick={onOpenSettings}
+          title="Settings"
+        >
+          <svg className="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round">
+            <line x1="3" y1="8" x2="21" y2="8" />
+            <line x1="3" y1="16" x2="21" y2="16" />
+            <circle cx="9" cy="8" r="2.5" fill="currentColor" stroke="none" />
+            <circle cx="16" cy="16" r="2.5" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
+
+        <div className="w-px h-4 bg-obsidian-border-subtle mx-0.5" />
+
         {/* Minimize */}
         <button
           className="w-11 h-9 flex items-center justify-center text-obsidian-text-muted hover:bg-obsidian-hover transition-colors"

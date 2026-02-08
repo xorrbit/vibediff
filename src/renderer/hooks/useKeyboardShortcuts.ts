@@ -7,6 +7,7 @@ interface KeyboardShortcutsOptions {
   onPrevTab: () => string | undefined  // Returns new session ID
   onGoToTab: (index: number) => void
   onShowHelp?: () => void
+  onOpenSettings?: () => void
   onTabSwitched?: (sessionId: string) => void
 }
 
@@ -17,6 +18,7 @@ export function useKeyboardShortcuts({
   onPrevTab,
   onGoToTab,
   onShowHelp,
+  onOpenSettings,
   onTabSwitched,
 }: KeyboardShortcutsOptions): void {
   const isHelpShortcut = (event: KeyboardEvent): boolean => {
@@ -73,8 +75,15 @@ export function useKeyboardShortcuts({
         onShowHelp()
         return
       }
+
+      // Cmd/Ctrl + ,: Open settings
+      if (isMod && e.key === ',' && onOpenSettings) {
+        e.preventDefault()
+        onOpenSettings()
+        return
+      }
     },
-    [onNewTab, onCloseTab, onNextTab, onPrevTab, onGoToTab, onShowHelp, onTabSwitched]
+    [onNewTab, onCloseTab, onNextTab, onPrevTab, onGoToTab, onShowHelp, onOpenSettings, onTabSwitched]
   )
 
   useEffect(() => {
