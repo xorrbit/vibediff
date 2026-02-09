@@ -112,7 +112,7 @@ export class FileWatcher {
       }, DEBOUNCE_MS)
     }
 
-    fsWatcher.on('change', (eventType: string, filename: string | null) => {
+    fsWatcher.on('change', (_eventType: string, filename: string | null) => {
       if (!filename) return
       if (isIgnored(filename)) return
 
