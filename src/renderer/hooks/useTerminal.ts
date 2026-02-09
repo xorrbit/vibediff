@@ -192,13 +192,13 @@ export function useTerminal({ sessionId, cwd, bootstrapCommands, onExit }: UseTe
       handleContextMenu = (e: MouseEvent) => {
         e.preventDefault()
         const hasSelection = terminal!.hasSelection()
-        window.electronAPI.terminal.showContextMenu(hasSelection, hasSelection ? terminal!.getSelection() : '')
+        window.electronAPI.terminal.showContextMenu(sessionId, hasSelection, hasSelection ? terminal!.getSelection() : '')
       }
       container.addEventListener('contextmenu', handleContextMenu)
 
-      // Handle context menu actions from main process
-      unsubscribeContextMenu = window.electronAPI.terminal.onContextMenuAction((action) => {
-        if (!terminal) return
+      // Handle context menu actions from main process (only for this session)
+      unsubscribeContextMenu = window.electronAPI.terminal.onContextMenuAction((actionSessionId, action) => {
+        if (!terminal || actionSessionId !== sessionId) return
         switch (action) {
           case 'paste':
             navigator.clipboard.readText().then((text) => {

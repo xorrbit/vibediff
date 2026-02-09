@@ -131,6 +131,19 @@ describe('useTerminal', () => {
     unsubscribePtyData = vi.fn()
     unsubscribePtyExit = vi.fn()
 
+    // localStorage mock (jsdom may not provide it in all envs)
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: vi.fn(() => null),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        clear: vi.fn(),
+        length: 0,
+        key: vi.fn(),
+      },
+    })
+
     window.electronAPI.pty.spawn = vi.fn().mockResolvedValue(undefined)
     window.electronAPI.pty.input = vi.fn()
     window.electronAPI.pty.resize = vi.fn()
@@ -176,7 +189,7 @@ describe('useTerminal', () => {
   })
 
   it('routes right-click and context menu actions (copy, paste, selectAll, clear)', async () => {
-    let contextActionHandler: ((action: 'copy' | 'paste' | 'selectAll' | 'clear') => void) | null = null
+    let contextActionHandler: ((sessionId: string, action: string) => void) | null = null
     const unsubscribeContextMenu = vi.fn()
     window.electronAPI.terminal.onContextMenuAction = vi.fn((handler) => {
       contextActionHandler = handler
@@ -194,12 +207,12 @@ describe('useTerminal', () => {
     terminal.getSelection.mockReturnValue('selected text')
 
     fireEvent.contextMenu(screen.getByTestId('terminal-container'))
-    expect(window.electronAPI.terminal.showContextMenu).toHaveBeenCalledWith(true, 'selected text')
+    expect(window.electronAPI.terminal.showContextMenu).toHaveBeenCalledWith('session-2', true, 'selected text')
 
     await act(async () => {
-      contextActionHandler?.('paste')
-      contextActionHandler?.('selectAll')
-      contextActionHandler?.('clear')
+      contextActionHandler?.('session-2', 'paste')
+      contextActionHandler?.('session-2', 'selectAll')
+      contextActionHandler?.('session-2', 'clear')
       await Promise.resolve()
     })
 
@@ -208,6 +221,36 @@ describe('useTerminal', () => {
     expect(terminal.selectAll).toHaveBeenCalled()
     expect(terminal.clear).toHaveBeenCalled()
     expect(unsubscribeContextMenu).not.toHaveBeenCalled()
+  })
+
+  it('ignores context menu actions intended for a different session', async () => {
+    let contextActionHandler: ((sessionId: string, action: string) => void) | null = null
+    window.electronAPI.terminal.onContextMenuAction = vi.fn((handler) => {
+      contextActionHandler = handler
+      return vi.fn()
+    })
+
+    render(<Harness sessionId="session-A" cwd="/repo" />)
+
+    await waitFor(() => {
+      expect(terminalInstances).toHaveLength(1)
+    })
+
+    const terminal = terminalInstances[0]
+
+    // Simulate a paste action targeted at a DIFFERENT session
+    await act(async () => {
+      contextActionHandler?.('session-B', 'paste')
+      contextActionHandler?.('session-B', 'selectAll')
+      contextActionHandler?.('session-B', 'clear')
+      await Promise.resolve()
+    })
+
+    // This terminal should NOT have received any actions
+    expect(navigator.clipboard.readText).not.toHaveBeenCalled()
+    expect(terminal.paste).not.toHaveBeenCalled()
+    expect(terminal.selectAll).not.toHaveBeenCalled()
+    expect(terminal.clear).not.toHaveBeenCalled()
   })
 
   it('writes PTY data to terminal and calls onExit when PTY exits', async () => {

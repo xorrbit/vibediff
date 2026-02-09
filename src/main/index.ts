@@ -267,7 +267,7 @@ function registerIpcHandlers() {
   })
 
   // Terminal context menu
-  ipcMain.on(TERMINAL_MENU_CHANNELS.SHOW, (event, hasSelection: boolean, selectionText: string) => {
+  ipcMain.on(TERMINAL_MENU_CHANNELS.SHOW, (event, sessionId: string, hasSelection: boolean, selectionText: string) => {
     if (!validateIpcSender(event)) return
     try {
       assertBoolean(hasSelection, 'hasSelection')
@@ -286,16 +286,16 @@ function registerIpcHandlers() {
       },
       {
         label: 'Paste',
-        click: () => event.sender.send(TERMINAL_MENU_CHANNELS.ACTION, 'paste'),
+        click: () => event.sender.send(TERMINAL_MENU_CHANNELS.ACTION, sessionId, 'paste'),
       },
       { type: 'separator' },
       {
         label: 'Select All',
-        click: () => event.sender.send(TERMINAL_MENU_CHANNELS.ACTION, 'selectAll'),
+        click: () => event.sender.send(TERMINAL_MENU_CHANNELS.ACTION, sessionId, 'selectAll'),
       },
       {
         label: 'Clear',
-        click: () => event.sender.send(TERMINAL_MENU_CHANNELS.ACTION, 'clear'),
+        click: () => event.sender.send(TERMINAL_MENU_CHANNELS.ACTION, sessionId, 'clear'),
       },
     ])
     menu.popup()

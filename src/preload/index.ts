@@ -118,12 +118,12 @@ const electronAPI: ElectronAPI = {
   },
 
   terminal: {
-    showContextMenu: (hasSelection: boolean, selectionText: string) =>
-      ipcRenderer.send(TERMINAL_MENU_CHANNELS.SHOW, hasSelection, selectionText),
+    showContextMenu: (sessionId: string, hasSelection: boolean, selectionText: string) =>
+      ipcRenderer.send(TERMINAL_MENU_CHANNELS.SHOW, sessionId, hasSelection, selectionText),
 
-    onContextMenuAction: (callback: (action: string) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, action: string) => {
-        callback(action)
+    onContextMenuAction: (callback: (sessionId: string, action: string) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, sessionId: string, action: string) => {
+        callback(sessionId, action)
       }
       ipcRenderer.on(TERMINAL_MENU_CHANNELS.ACTION, listener)
       return () => ipcRenderer.removeListener(TERMINAL_MENU_CHANNELS.ACTION, listener)

@@ -37,7 +37,7 @@ const mockElectronAPI = {
   },
   terminal: {
     showContextMenu: vi.fn(),
-    onContextMenuAction: vi.fn(() => () => {}),
+    onContextMenuAction: vi.fn((() => () => {}) as (callback: (sessionId: string, action: string) => void) => () => void),
   },
   shell: {
     openExternal: vi.fn().mockResolvedValue(undefined),
