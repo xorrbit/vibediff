@@ -2,6 +2,7 @@ import { memo, useRef, useCallback, useEffect, useImperativeHandle, type Ref } f
 import { ResizableSplit } from './ResizableSplit'
 import { Terminal, TerminalHandle } from '../terminal/Terminal'
 import { DiffPanel } from '../diff/DiffPanel'
+import type { DiffViewMode } from '../diff/DiffView'
 
 interface SessionProps {
   sessionId: string
@@ -11,6 +12,8 @@ interface SessionProps {
   gitRootHint: string | null | undefined
   isActive?: boolean
   onCloseSession: (id: string) => void
+  diffViewMode: DiffViewMode
+  onDiffViewModeChange: (mode: DiffViewMode) => void
   ref?: Ref<SessionHandle>
 }
 
@@ -19,7 +22,7 @@ export interface SessionHandle {
 }
 
 export const Session = memo(
-  function Session({ sessionId, cwd, bootstrapCommands, diffCwd, gitRootHint, isActive, onCloseSession, ref }: SessionProps) {
+  function Session({ sessionId, cwd, bootstrapCommands, diffCwd, gitRootHint, isActive, onCloseSession, diffViewMode, onDiffViewModeChange, ref }: SessionProps) {
   const terminalRef = useRef<TerminalHandle>(null)
 
   const handleExit = useCallback(() => {
@@ -64,6 +67,8 @@ export const Session = memo(
             gitRootHint={gitRootHint}
             isActive={!!isActive}
             onFocusTerminal={focusTerminal}
+            diffViewMode={diffViewMode}
+            onDiffViewModeChange={onDiffViewModeChange}
           />
         }
         initialRatio={0.5}

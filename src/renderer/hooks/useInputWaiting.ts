@@ -13,7 +13,7 @@ const PROMPT_SCORE_THRESHOLD = 3
 
 interface ScoredSignal {
   weight: number
-  matches: (text: string) => boolean
+  matches: (text: string, normalized: string) => boolean
 }
 
 function normalizeForPhraseMatching(text: string): string {
@@ -30,7 +30,7 @@ function matchesAnyPhrase(text: string, phrases: string[]): boolean {
 const INPUT_PROMPT_SIGNALS: ScoredSignal[] = [
   {
     weight: 4,
-    matches: (text) => matchesAnyPhrase(normalizeForPhraseMatching(text), [
+    matches: (_text, normalized) => matchesAnyPhrase(normalized, [
       'waiting for input',
       'waiting for your input',
       'waiting for response',
@@ -47,7 +47,7 @@ const INPUT_PROMPT_SIGNALS: ScoredSignal[] = [
   },
   {
     weight: 4,
-    matches: (text) => matchesAnyPhrase(normalizeForPhraseMatching(text), [
+    matches: (_text, normalized) => matchesAnyPhrase(normalized, [
       'needs input',
       'needs your input',
       'needs response',
@@ -82,7 +82,7 @@ const INPUT_PROMPT_SIGNALS: ScoredSignal[] = [
   },
   {
     weight: 3,
-    matches: (text) => matchesAnyPhrase(normalizeForPhraseMatching(text), [
+    matches: (_text, normalized) => matchesAnyPhrase(normalized, [
       'choose option',
       'choose an option',
       'select option',
@@ -143,16 +143,17 @@ function appendRecentOutputTail(previousTail: string, nextChunk: string): string
 }
 
 function scorePromptLikelihood(recentTail: string): number {
+  const normalized = normalizeForPhraseMatching(recentTail)
   let score = 0
 
   for (const { matches, weight } of INPUT_PROMPT_SIGNALS) {
-    if (matches(recentTail)) {
+    if (matches(recentTail, normalized)) {
       score += weight
     }
   }
 
   for (const { matches, weight } of NON_PROMPT_SIGNALS) {
-    if (matches(recentTail)) {
+    if (matches(recentTail, normalized)) {
       score -= weight
     }
   }

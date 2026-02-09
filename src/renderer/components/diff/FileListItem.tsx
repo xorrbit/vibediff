@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useCallback } from 'react'
 import { ChangedFile, FileStatus } from '@shared/types'
 
 interface FileListItemProps {
@@ -25,6 +25,7 @@ export const FileListItem = memo(function FileListItem({
   isCollapsed,
 }: FileListItemProps) {
   const config = STATUS_CONFIG[file.status]
+  const handleClick = useCallback(() => onSelect(file.path), [onSelect, file.path])
 
   // Get just the filename from the path
   const fileName = file.path.split('/').pop() || file.path
@@ -42,7 +43,7 @@ export const FileListItem = memo(function FileListItem({
           : 'hover:bg-obsidian-float/50'
         }
       `}
-      onClick={() => onSelect(file.path)}
+      onClick={handleClick}
       title={`${file.path} (${config.label})`}
       style={{ animationDelay: `${index * 30}ms` }}
     >

@@ -73,11 +73,6 @@ export class FileWatcher {
       usePolling: false,
       // Handle atomic saves (editors that write to temp file then rename)
       atomic: true,
-      // Slight delay to batch rapid changes
-      awaitWriteFinish: {
-        stabilityThreshold: 300,
-        pollInterval: 100,
-      },
       // Limit depth to avoid watching deeply nested generated dirs
       depth: 10,
     })

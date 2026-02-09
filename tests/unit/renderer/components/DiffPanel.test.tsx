@@ -51,6 +51,9 @@ describe('DiffPanel', () => {
     refresh: vi.fn(),
   }
 
+  const defaultDiffViewMode = 'unified' as const
+  const defaultOnDiffViewModeChange = vi.fn()
+
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
@@ -65,7 +68,7 @@ describe('DiffPanel', () => {
       refresh,
     })
 
-    render(<DiffPanel sessionId="s1" cwd="/project" />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
     expect(screen.getByText('Git repository not found')).toBeInTheDocument()
     expect(screen.getByText('Try again')).toBeInTheDocument()
@@ -80,7 +83,7 @@ describe('DiffPanel', () => {
       files: [{ path: 'file.ts', status: 'M' }],
     })
 
-    render(<DiffPanel sessionId="s1" cwd="/project" />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
     expect(screen.getByTestId('mock-file-list')).toBeInTheDocument()
     expect(screen.getByTestId('mock-diff-view')).toBeInTheDocument()
@@ -95,7 +98,7 @@ describe('DiffPanel', () => {
       ],
     })
 
-    render(<DiffPanel sessionId="s1" cwd="/project" />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
     expect(screen.getByText('2')).toBeInTheDocument()
   })
@@ -106,13 +109,13 @@ describe('DiffPanel', () => {
       selectedFile: 'src/main.ts',
     })
 
-    render(<DiffPanel sessionId="s1" cwd="/project" />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
     expect(screen.getByText('src/main.ts')).toBeInTheDocument()
   })
 
   it('passes cwd and gitRootHint props through to useGitDiff', () => {
-    render(<DiffPanel sessionId="s1" cwd="/project/subdir" gitRootHint="/project" />)
+    render(<DiffPanel sessionId="s1" cwd="/project/subdir" gitRootHint="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
     expect(mockUseGitDiff).toHaveBeenCalledWith({
       sessionId: 's1',
@@ -122,7 +125,7 @@ describe('DiffPanel', () => {
   })
 
   it('defaults gitRootHint to undefined when not provided', () => {
-    render(<DiffPanel sessionId="s1" cwd="/project" />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
     expect(mockUseGitDiff).toHaveBeenCalledWith({
       sessionId: 's1',
@@ -141,7 +144,7 @@ describe('DiffPanel', () => {
     })
 
     render(
-      <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} />
+      <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />
     )
 
     fireEvent.click(screen.getByTestId('file-file.ts'))
@@ -156,7 +159,7 @@ describe('DiffPanel', () => {
       files: [{ path: 'file.ts', status: 'M' }],
     })
 
-    const { container } = render(<DiffPanel sessionId="s1" cwd="/project" />)
+    const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
     // Find the collapse toggle button
     const toggleButton = container.querySelector('button[title*="Collapse"]') ||
@@ -172,7 +175,7 @@ describe('DiffPanel', () => {
       refresh,
     })
 
-    const { container } = render(<DiffPanel sessionId="s1" cwd="/project" />)
+    const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
     const refreshButton = container.querySelector('button[title="Refresh"]')
     expect(refreshButton).toBeInTheDocument()
@@ -189,14 +192,14 @@ describe('DiffPanel', () => {
       isLoading: true,
     })
 
-    const { container } = render(<DiffPanel sessionId="s1" cwd="/project" />)
+    const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
     const spinner = container.querySelector('.animate-spin')
     expect(spinner).toBeInTheDocument()
   })
 
   it('renders Changes header', () => {
-    render(<DiffPanel sessionId="s1" cwd="/project" />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
     expect(screen.getByText('Changes')).toBeInTheDocument()
   })
@@ -207,7 +210,7 @@ describe('DiffPanel', () => {
       files: [],
     })
 
-    render(<DiffPanel sessionId="s1" cwd="/project" />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
     // The badge with file count should not appear
     const badge = screen.queryByText('0')
@@ -215,57 +218,66 @@ describe('DiffPanel', () => {
   })
 
   describe('resize behavior', () => {
-    it('cycles diff mode auto -> unified -> split and back', () => {
+    it('cycles diff mode unified -> split -> auto and calls onDiffViewModeChange', () => {
       const onFocusTerminal = vi.fn()
+      const onDiffViewModeChange = vi.fn()
       mockUseGitDiff.mockReturnValue({
         ...defaultGitDiff,
         selectedFile: 'src/main.ts',
         diffContent: { original: 'old', modified: 'new' },
       })
 
-      render(<DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} />)
+      const { rerender } = render(
+        <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode="unified" onDiffViewModeChange={onDiffViewModeChange} />
+      )
 
-      const viewModeButton = screen.getByTitle('View: Unified')
-      const diffView = screen.getByTestId('mock-diff-view')
+      expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'unified')
 
-      expect(diffView).toHaveAttribute('data-view-mode', 'unified')
+      fireEvent.click(screen.getByTitle('View: Unified'))
+      expect(onDiffViewModeChange).toHaveBeenCalledWith('split')
 
-      fireEvent.click(viewModeButton)
+      rerender(
+        <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode="split" onDiffViewModeChange={onDiffViewModeChange} />
+      )
       expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'split')
 
       fireEvent.click(screen.getByTitle('View: Split'))
-      expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'auto')
+      expect(onDiffViewModeChange).toHaveBeenCalledWith('auto')
+
+      rerender(
+        <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode="auto" onDiffViewModeChange={onDiffViewModeChange} />
+      )
 
       fireEvent.click(screen.getByTitle('View: Automatic'))
-      expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'unified')
+      expect(onDiffViewModeChange).toHaveBeenCalledWith('unified')
       expect(onFocusTerminal).toHaveBeenCalledTimes(3)
     })
 
-    it('initializes diff view mode from localStorage', () => {
-      localStorage.setItem('cdw-diff-view-mode', 'split')
+    it('renders with the diffViewMode prop', () => {
       mockUseGitDiff.mockReturnValue({
         ...defaultGitDiff,
         selectedFile: 'src/main.ts',
         diffContent: { original: 'old', modified: 'new' },
       })
 
-      render(<DiffPanel sessionId="s1" cwd="/project" />)
+      render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode="split" onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
       expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'split')
     })
 
-    it('persists diff view mode to localStorage on cycle', () => {
+    it('calls onDiffViewModeChange with next mode on cycle click', () => {
+      const onDiffViewModeChange = vi.fn()
       mockUseGitDiff.mockReturnValue({
         ...defaultGitDiff,
         selectedFile: 'src/main.ts',
         diffContent: { original: 'old', modified: 'new' },
       })
 
-      render(<DiffPanel sessionId="s1" cwd="/project" />)
+      render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode="unified" onDiffViewModeChange={onDiffViewModeChange} />)
 
       fireEvent.click(screen.getByTitle('View: Unified'))
 
-      expect(localStorage.getItem('cdw-diff-view-mode')).toBe('split')
+      expect(onDiffViewModeChange).toHaveBeenCalledWith('split')
     })
 
     it('copies selected file path and filename to clipboard', () => {
@@ -280,7 +292,7 @@ describe('DiffPanel', () => {
         selectedFile: 'src/components/App.tsx',
       })
 
-      render(<DiffPanel sessionId="s1" cwd="/project" />)
+      render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
 
       fireEvent.click(screen.getByTitle('Copy relative path'))
       fireEvent.click(screen.getByTitle('Copy filename'))
@@ -295,7 +307,7 @@ describe('DiffPanel', () => {
         files: [{ path: 'file.ts', status: 'M' }],
       })
 
-      const { container } = render(<DiffPanel sessionId="s1" cwd="/project" />)
+      const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
       const immediateRaf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
         cb(0)
         return 1
@@ -330,7 +342,7 @@ describe('DiffPanel', () => {
         files: [{ path: 'file.ts', status: 'M' }],
       })
 
-      const { container } = render(<DiffPanel sessionId="s1" cwd="/project" />)
+      const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
       const immediateRaf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
         cb(0)
         return 1

@@ -116,7 +116,15 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
       // Bail if a newer request has been issued
       if (requestId !== loadRequestId.current) return
 
-      setFiles(changedFiles)
+      setFiles((prev) => {
+        if (
+          prev.length === changedFiles.length &&
+          prev.every((f, i) => f.path === changedFiles[i].path && f.status === changedFiles[i].status)
+        ) {
+          return prev
+        }
+        return changedFiles
+      })
       setError(null)
       lastSuccessfulLoadAtRef.current = Date.now()
 
@@ -327,7 +335,7 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
         } finally {
           isRefreshing = false
         }
-      }, 500)
+      }, 300)
     }
 
     const startWatching = async () => {

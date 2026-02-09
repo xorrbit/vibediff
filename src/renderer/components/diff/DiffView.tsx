@@ -16,6 +16,40 @@ interface DiffViewProps {
   viewMode?: DiffViewMode
 }
 
+const LANGUAGE_MAP: Record<string, string> = {
+  ts: 'typescript',
+  tsx: 'typescript',
+  js: 'javascript',
+  jsx: 'javascript',
+  json: 'json',
+  md: 'markdown',
+  css: 'css',
+  scss: 'scss',
+  less: 'less',
+  html: 'html',
+  xml: 'xml',
+  yaml: 'yaml',
+  yml: 'yaml',
+  py: 'python',
+  rb: 'ruby',
+  go: 'go',
+  rs: 'rust',
+  java: 'java',
+  kt: 'kotlin',
+  swift: 'swift',
+  c: 'c',
+  cpp: 'cpp',
+  h: 'c',
+  hpp: 'cpp',
+  cs: 'csharp',
+  php: 'php',
+  sql: 'sql',
+  sh: 'shell',
+  bash: 'shell',
+  zsh: 'shell',
+  dockerfile: 'dockerfile',
+}
+
 // Get language from file extension
 function getLanguage(filePath: string | null): string {
   if (!filePath) return 'plaintext'
@@ -26,42 +60,7 @@ function getLanguage(filePath: string | null): string {
 
   // Fall back to hardcoded map
   const ext = filePath.split('.').pop()?.toLowerCase()
-
-  const languageMap: Record<string, string> = {
-    ts: 'typescript',
-    tsx: 'typescript',
-    js: 'javascript',
-    jsx: 'javascript',
-    json: 'json',
-    md: 'markdown',
-    css: 'css',
-    scss: 'scss',
-    less: 'less',
-    html: 'html',
-    xml: 'xml',
-    yaml: 'yaml',
-    yml: 'yaml',
-    py: 'python',
-    rb: 'ruby',
-    go: 'go',
-    rs: 'rust',
-    java: 'java',
-    kt: 'kotlin',
-    swift: 'swift',
-    c: 'c',
-    cpp: 'cpp',
-    h: 'c',
-    hpp: 'cpp',
-    cs: 'csharp',
-    php: 'php',
-    sql: 'sql',
-    sh: 'shell',
-    bash: 'shell',
-    zsh: 'shell',
-    dockerfile: 'dockerfile',
-  }
-
-  return ext ? languageMap[ext] || 'plaintext' : 'plaintext'
+  return ext ? LANGUAGE_MAP[ext] || 'plaintext' : 'plaintext'
 }
 
 function LoadingFallback() {
@@ -164,7 +163,7 @@ const PoolRenderer = memo(function PoolRenderer({
           key={entry.path}
           data-file={entry.path}
           className="absolute inset-0"
-          style={{ opacity: 0, pointerEvents: 'none' as const, zIndex: 0, willChange: 'opacity' }}
+          style={{ opacity: 0, pointerEvents: 'none' as const, zIndex: 0 }}
         >
           <Suspense fallback={<LoadingFallback />}>
             <DiffEditorContent

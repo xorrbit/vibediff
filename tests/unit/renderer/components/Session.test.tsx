@@ -32,6 +32,7 @@ vi.mock('@renderer/components/diff/DiffPanel', () => ({
     return React.createElement('div', {
       'data-testid': 'mock-diff-panel',
       'data-session-id': props.sessionId,
+      'data-diff-view-mode': props.diffViewMode ?? '',
     })
   }),
 }))
@@ -46,13 +47,23 @@ vi.mock('@renderer/context/SessionContext', () => ({
 import { Session, SessionHandle } from '@renderer/components/layout/Session'
 
 describe('Session', () => {
+  const baseProps = {
+    sessionId: 's1',
+    cwd: '/project',
+    diffCwd: '/project',
+    gitRootHint: null as string | null,
+    onCloseSession: vi.fn(),
+    diffViewMode: 'unified' as const,
+    onDiffViewModeChange: vi.fn(),
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('renders ResizableSplit with Terminal and DiffPanel', () => {
     const { getByTestId } = render(
-      <Session sessionId="s1" cwd="/project" />
+      <Session {...baseProps} />
     )
 
     expect(getByTestId('mock-resizable-split')).toBeInTheDocument()
@@ -62,7 +73,7 @@ describe('Session', () => {
 
   it('passes sessionId to child components', () => {
     const { getByTestId } = render(
-      <Session sessionId="s1" cwd="/project" />
+      <Session {...baseProps} />
     )
 
     expect(getByTestId('mock-terminal')).toHaveAttribute('data-session-id', 's1')
@@ -71,7 +82,7 @@ describe('Session', () => {
 
   it('uses 0.5 initial ratio for ResizableSplit', () => {
     const { getByTestId } = render(
-      <Session sessionId="s1" cwd="/project" />
+      <Session {...baseProps} />
     )
 
     expect(getByTestId('mock-resizable-split')).toHaveAttribute('data-ratio', '0.5')
@@ -80,7 +91,7 @@ describe('Session', () => {
   it('exposes focusTerminal via ref', () => {
     const ref = createRef<SessionHandle>()
 
-    render(<Session ref={ref} sessionId="s1" cwd="/project" />)
+    render(<Session ref={ref} {...baseProps} />)
 
     expect(ref.current).toBeDefined()
     expect(ref.current!.focusTerminal).toBeInstanceOf(Function)
@@ -95,7 +106,7 @@ describe('Session', () => {
 
     const ref = createRef<SessionHandle>()
 
-    render(<Session ref={ref} sessionId="s1" cwd="/project" isActive={true} />)
+    render(<Session ref={ref} {...baseProps} isActive={true} />)
 
     // requestAnimationFrame should have been called
     expect(rafSpy).toHaveBeenCalled()
@@ -109,7 +120,7 @@ describe('Session', () => {
       return 0
     })
 
-    render(<Session sessionId="s1" cwd="/project" isActive={false} />)
+    render(<Session {...baseProps} isActive={false} />)
 
     expect(rafSpy).not.toHaveBeenCalled()
 
@@ -121,7 +132,7 @@ describe('Session', () => {
     // We can't easily trigger it from the mock, but we verify
     // the Session component passes the correct handler
     const { getByTestId } = render(
-      <Session sessionId="s1" cwd="/project" />
+      <Session {...baseProps} />
     )
 
     expect(getByTestId('mock-terminal')).toBeInTheDocument()

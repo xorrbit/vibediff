@@ -548,12 +548,12 @@ describe('useGitDiff', () => {
 
       // Before debounce completes - should not have called yet
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(400)
+        await vi.advanceTimersByTimeAsync(200)
       })
 
       expect(mockGit.getChangedFiles.mock.calls.length).toBe(callsAfterInit)
 
-      // After debounce (500ms total)
+      // After debounce (300ms total)
       await act(async () => {
         await vi.advanceTimersByTimeAsync(200)
       })

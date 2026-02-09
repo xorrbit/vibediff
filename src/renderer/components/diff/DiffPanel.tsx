@@ -9,6 +9,8 @@ interface DiffPanelProps {
   gitRootHint?: string | null
   isActive?: boolean
   onFocusTerminal?: () => void
+  diffViewMode: DiffViewMode
+  onDiffViewModeChange: (mode: DiffViewMode) => void
 }
 
 export const DiffPanel = memo(function DiffPanel({
@@ -17,6 +19,8 @@ export const DiffPanel = memo(function DiffPanel({
   gitRootHint,
   isActive = true,
   onFocusTerminal,
+  diffViewMode,
+  onDiffViewModeChange,
 }: DiffPanelProps) {
   const {
     files,
@@ -50,33 +54,12 @@ export const DiffPanel = memo(function DiffPanel({
   const heightRafRef = useRef<number | null>(null)
   const pendingHeightRef = useRef<number | null>(null)
 
-  // Diff view mode toggle (persisted to localStorage)
-  const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>(() => {
-    const stored = localStorage.getItem('cdw-diff-view-mode')
-    return (stored === 'unified' || stored === 'split' || stored === 'auto') ? stored : 'unified'
-  })
   const cycleDiffViewMode = useCallback(() => {
-    setDiffViewMode(prev => {
-      const modes: DiffViewMode[] = ['auto', 'unified', 'split']
-      const next = modes[(modes.indexOf(prev) + 1) % modes.length]
-      localStorage.setItem('cdw-diff-view-mode', next)
-      window.dispatchEvent(new CustomEvent('diff-view-mode-change', { detail: { mode: next } }))
-      return next
-    })
+    const modes: DiffViewMode[] = ['auto', 'unified', 'split']
+    const next = modes[(modes.indexOf(diffViewMode) + 1) % modes.length]
+    onDiffViewModeChange(next)
     onFocusTerminal?.()
-  }, [onFocusTerminal])
-
-  // Sync when SettingsModal changes the diff view mode
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const mode = (e as CustomEvent).detail?.mode as DiffViewMode
-      if (mode === 'unified' || mode === 'split' || mode === 'auto') {
-        setDiffViewMode(mode)
-      }
-    }
-    window.addEventListener('diff-view-mode-change', handler)
-    return () => window.removeEventListener('diff-view-mode-change', handler)
-  }, [])
+  }, [diffViewMode, onDiffViewModeChange, onFocusTerminal])
 
   const toggleCollapsed = useCallback(() => {
     setIsCollapsed(prev => !prev)

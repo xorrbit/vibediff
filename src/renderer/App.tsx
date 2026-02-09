@@ -179,14 +179,20 @@ function AppContent() {
     setAutomationEnabled(status.enabled)
   }, [])
 
+  const handleShowHelp = useCallback(() => setShowHelp(true), [])
+  const handleHideHelp = useCallback(() => setShowHelp(false), [])
+  const handleToggleSettings = useCallback(() => setShowSettings((s) => !s), [])
+  const handleShowSettings = useCallback(() => setShowSettings(true), [])
+  const handleHideSettings = useCallback(() => setShowSettings(false), [])
+
   useKeyboardShortcuts({
     onNewTab: createSession,
     onCloseTab: handleCloseTab,
     onNextTab: handleNextTab,
     onPrevTab: handlePrevTab,
     onGoToTab: handleGoToTab,
-    onShowHelp: () => setShowHelp(true),
-    onOpenSettings: () => setShowSettings((s) => !s),
+    onShowHelp: handleShowHelp,
+    onOpenSettings: handleToggleSettings,
     onTabSwitched: focusSessionTerminal,
   })
 
@@ -203,7 +209,7 @@ function AppContent() {
         onTabSelect={setActiveSession}
         onTabClose={guardedCloseSession}
         onNewTab={createSession}
-        onOpenSettings={() => setShowSettings(true)}
+        onOpenSettings={handleShowSettings}
       />
       <div className="flex-1 min-h-0 relative">
         {sessions.length > 0 ? (
@@ -221,6 +227,8 @@ function AppContent() {
                 gitRootHint={sessionGitRoots.get(session.id)}
                 isActive={session.id === activeSessionId}
                 onCloseSession={closeSession}
+                diffViewMode={diffViewMode}
+                onDiffViewModeChange={handleDiffViewModeChange}
               />
             </div>
           ))
@@ -228,10 +236,10 @@ function AppContent() {
           <EmptyState onCreateSession={createSession} />
         )}
       </div>
-      <HelpOverlay isOpen={showHelp} onClose={() => setShowHelp(false)} />
+      <HelpOverlay isOpen={showHelp} onClose={handleHideHelp} />
       <SettingsModal
         isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
+        onClose={handleHideSettings}
         uiScale={uiScale}
         onUiScaleChange={handleUiScaleChange}
         diffViewMode={diffViewMode}
