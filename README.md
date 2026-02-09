@@ -20,7 +20,8 @@ IDEs are on borrowed time. The workflow now is: open Claude Code, tell it what y
 - **Smart tab naming**: Tabs show your git branch name, or directory name when on main/master
 - **Multi-tab support**: Multiple sessions with keyboard shortcuts, or double-click the tab bar to open a new tab
 - **AI waiting tab indicator**: Background tabs waiting on Claude/Codex are highlighted with a subtle tint and pulsing icon
-- **Terminal context menu**: Right-click for Copy, Paste, Select All, and Clear
+- **Terminal context menu**: Right-click for Copy, Paste, Select All, Clear, and "Open tabs for subdirectories"
+- **Bulk subdirectory tabs**: Right-click and open a tab for every first-level subdirectory of the current working directory — great for multi-repo workspaces
 - **Settings panel**: UI scale (75%–150%), default diff view mode, and automation API toggle — all in one place
 - **WebGL-accelerated terminal**: Hardware-accelerated rendering for smooth scrolling and output
 - **Cross-platform**: macOS, Windows, and Linux
@@ -106,7 +107,7 @@ Optimized for large repositories and multi-tab workflows:
 | PTY | node-pty |
 | Diff View | Monaco Editor + vscode-textmate |
 | Git | simple-git |
-| File Watching | chokidar |
+| File Watching | Native fs.watch |
 | Testing | Vitest + Playwright |
 
 ## Development
