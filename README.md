@@ -21,6 +21,7 @@ IDEs are on borrowed time. The workflow now is: open Claude Code, tell it what y
 - **Multi-tab support**: Multiple sessions with keyboard shortcuts, or double-click the tab bar to open a new tab
 - **AI waiting tab indicator**: Background tabs waiting on Claude/Codex are highlighted with a subtle tint and pulsing icon
 - **Terminal context menu**: Right-click for Copy, Paste, Select All, and Clear
+- **Settings panel**: UI scale (75%–150%), default diff view mode, and automation API toggle — all in one place
 - **WebGL-accelerated terminal**: Hardware-accelerated rendering for smooth scrolling and output
 - **Cross-platform**: macOS, Windows, and Linux
 
@@ -66,6 +67,7 @@ Download from the [Releases](https://github.com/xorrbit/claudedidwhat/releases) 
 | `Ctrl+Shift+Tab` | Previous tab |
 | `Ctrl+1-9` / `Cmd+1-9` | Switch to tab by number |
 | `Ctrl+?` / `Cmd+?` | Show help overlay |
+| `Ctrl+,` / `Cmd+,` | Open settings |
 
 ### Diff Panel
 
