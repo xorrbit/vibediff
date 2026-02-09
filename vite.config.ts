@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
 import { resolve } from 'path'
+import pkg from './package.json'
 
 const alias = {
   '@': resolve(__dirname, 'src'),
@@ -16,6 +17,9 @@ const alias = {
 const parentNodeModules = resolve(__dirname, '..', '..', 'node_modules')
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     tailwindcss(),

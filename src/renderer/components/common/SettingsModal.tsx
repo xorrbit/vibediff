@@ -116,6 +116,7 @@ export function SettingsModal({ isOpen, onClose, uiScale, onUiScaleChange, diffV
           <img src={logoPng} alt="" className="w-24 h-24 rounded-2xl" draggable={false} />
           <div className="text-center">
             <p className="text-base font-semibold text-obsidian-text whitespace-nowrap">Claude Did What?!</p>
+            <p className="text-xs text-obsidian-text-secondary mt-0.5">v{__APP_VERSION__}</p>
             <p className="text-xs text-obsidian-text-secondary mt-1">AI slop by Andrew Orr</p>
           </div>
           <div className="flex flex-col items-center gap-2 mt-2">
