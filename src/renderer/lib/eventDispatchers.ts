@@ -3,14 +3,17 @@ import { FileChangeEvent } from '@shared/types'
 type PtyDataHandler = (data: string) => void
 type PtyExitHandler = (code: number) => void
 type FileChangeHandler = (event: FileChangeEvent) => void
+type WatcherErrorHandler = () => void
 
 const ptyDataHandlers = new Map<string, Set<PtyDataHandler>>()
 const ptyExitHandlers = new Map<string, Set<PtyExitHandler>>()
 const fileChangeHandlers = new Map<string, Set<FileChangeHandler>>()
+const watcherErrorHandlers = new Map<string, Set<WatcherErrorHandler>>()
 
 let unsubscribePtyData: (() => void) | null = null
 let unsubscribePtyExit: (() => void) | null = null
 let unsubscribeFileChanged: (() => void) | null = null
+let unsubscribeWatcherError: (() => void) | null = null
 
 function getOrCreateSet<T>(map: Map<string, Set<T>>, sessionId: string): Set<T> {
   const existing = map.get(sessionId)
@@ -80,6 +83,23 @@ function maybeCleanupFileChangedListener(): void {
   unsubscribeFileChanged = null
 }
 
+function installWatcherErrorListener(): void {
+  if (unsubscribeWatcherError) return
+  unsubscribeWatcherError = window.electronAPI.fs.onWatcherError((sessionId) => {
+    const handlers = watcherErrorHandlers.get(sessionId)
+    if (!handlers || handlers.size === 0) return
+    for (const handler of handlers) {
+      handler()
+    }
+  })
+}
+
+function maybeCleanupWatcherErrorListener(): void {
+  if (watcherErrorHandlers.size > 0 || !unsubscribeWatcherError) return
+  unsubscribeWatcherError()
+  unsubscribeWatcherError = null
+}
+
 export function subscribePtyData(sessionId: string, handler: PtyDataHandler): () => void {
   installPtyDataListener()
   getOrCreateSet(ptyDataHandlers, sessionId).add(handler)
@@ -107,5 +127,15 @@ export function subscribeFileChanged(sessionId: string, handler: FileChangeHandl
   return () => {
     removeHandler(fileChangeHandlers, sessionId, handler)
     maybeCleanupFileChangedListener()
+  }
+}
+
+export function subscribeWatcherError(sessionId: string, handler: WatcherErrorHandler): () => void {
+  installWatcherErrorListener()
+  getOrCreateSet(watcherErrorHandlers, sessionId).add(handler)
+
+  return () => {
+    removeHandler(watcherErrorHandlers, sessionId, handler)
+    maybeCleanupWatcherErrorListener()
   }
 }

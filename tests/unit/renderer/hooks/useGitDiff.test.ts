@@ -17,6 +17,7 @@ const mockFs = {
   watchStart: vi.fn(),
   watchStop: vi.fn(),
   onFileChanged: vi.fn(() => () => {}),
+  onWatcherError: vi.fn(() => () => {}),
   selectDirectory: vi.fn(),
   startWatching: vi.fn(),
   stopWatching: vi.fn(),
@@ -482,6 +483,94 @@ describe('useGitDiff', () => {
         await vi.advanceTimersByTimeAsync(5000)
       })
 
+      expect(mockGit.getChangedFiles.mock.calls.length).toBe(callsAfterInit + 1)
+    })
+
+    it('falls back to polling when watcher error fires', async () => {
+      let watcherErrorHandler: ((sessionId: string) => void) | null = null
+      mockFs.onWatcherError.mockImplementation((handler: any) => {
+        watcherErrorHandler = handler
+        return () => {}
+      })
+      mockFs.watchStart.mockResolvedValue(true)
+      mockGit.getChangedFiles.mockResolvedValue([])
+
+      renderHook(() =>
+        useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
+      )
+
+      // Initial delayed load + watcher setup
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500)
+      })
+      const callsAfterInit = mockGit.getChangedFiles.mock.calls.length
+
+      // No polling should be active yet (native watcher is active)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000)
+      })
+      expect(mockGit.getChangedFiles.mock.calls.length).toBe(callsAfterInit)
+
+      // Simulate watcher error (EMFILE) — should start fallback polling
+      act(() => {
+        watcherErrorHandler?.('test-session')
+      })
+
+      // Now 5s polling should be active
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000)
+      })
+      expect(mockGit.getChangedFiles.mock.calls.length).toBe(callsAfterInit + 1)
+    })
+
+    it('does not start duplicate fallback polling on repeated watcher errors', async () => {
+      let watcherErrorHandler: ((sessionId: string) => void) | null = null
+      mockFs.onWatcherError.mockImplementation((handler: any) => {
+        watcherErrorHandler = handler
+        return () => {}
+      })
+      mockFs.watchStart.mockResolvedValue(true)
+      mockGit.getChangedFiles.mockResolvedValue([])
+
+      renderHook(() =>
+        useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500)
+      })
+      const callsAfterInit = mockGit.getChangedFiles.mock.calls.length
+
+      // Fire watcher error twice
+      act(() => {
+        watcherErrorHandler?.('test-session')
+        watcherErrorHandler?.('test-session')
+      })
+
+      // Should only get one poll per 5s interval (not two)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000)
+      })
+      expect(mockGit.getChangedFiles.mock.calls.length).toBe(callsAfterInit + 1)
+    })
+
+    it('starts fallback polling when watchStart throws', async () => {
+      mockFs.watchStart.mockRejectedValue(new Error('watch failed'))
+      mockGit.getChangedFiles.mockResolvedValue([])
+
+      renderHook(() =>
+        useGitDiff({ sessionId: 'test-session', cwd: '/test/dir' })
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500)
+      })
+      const callsAfterInit = mockGit.getChangedFiles.mock.calls.length
+
+      // Fallback poll should trigger after 5s
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000)
+      })
       expect(mockGit.getChangedFiles.mock.calls.length).toBe(callsAfterInit + 1)
     })
 

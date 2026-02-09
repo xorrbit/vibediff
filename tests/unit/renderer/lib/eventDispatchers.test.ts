@@ -5,6 +5,7 @@ interface ListenerStore {
   ptyData: ((sessionId: string, data: string) => void) | null
   ptyExit: ((sessionId: string, code: number) => void) | null
   fileChanged: ((event: FileChangeEvent) => void) | null
+  watcherError: ((sessionId: string) => void) | null
 }
 
 function setupGlobalListenerMocks() {
@@ -12,11 +13,13 @@ function setupGlobalListenerMocks() {
     ptyData: null,
     ptyExit: null,
     fileChanged: null,
+    watcherError: null,
   }
 
   const unsubscribePtyData = vi.fn()
   const unsubscribePtyExit = vi.fn()
   const unsubscribeFileChanged = vi.fn()
+  const unsubscribeWatcherError = vi.fn()
 
   window.electronAPI.pty.onData = vi.fn((cb) => {
     listeners.ptyData = cb
@@ -30,12 +33,17 @@ function setupGlobalListenerMocks() {
     listeners.fileChanged = cb
     return unsubscribeFileChanged
   })
+  window.electronAPI.fs.onWatcherError = vi.fn((cb) => {
+    listeners.watcherError = cb
+    return unsubscribeWatcherError
+  })
 
   return {
     listeners,
     unsubscribePtyData,
     unsubscribePtyExit,
     unsubscribeFileChanged,
+    unsubscribeWatcherError,
   }
 }
 
@@ -123,5 +131,44 @@ describe('eventDispatchers', () => {
     expect(onA).toHaveBeenCalledTimes(1)
 
     expect(unsubscribeFileChanged).not.toHaveBeenCalled()
+  })
+
+  it('dispatches watcher errors per session and cleans up global listener', async () => {
+    const { listeners, unsubscribeWatcherError } = setupGlobalListenerMocks()
+    const { subscribeWatcherError } = await import('@renderer/lib/eventDispatchers')
+
+    const onErrorA = vi.fn()
+    const onErrorB = vi.fn()
+    const unsubA = subscribeWatcherError('session-a', onErrorA)
+    const unsubB = subscribeWatcherError('session-b', onErrorB)
+
+    // Dispatch error for session-a only
+    listeners.watcherError?.('session-a')
+    expect(onErrorA).toHaveBeenCalledTimes(1)
+    expect(onErrorB).not.toHaveBeenCalled()
+
+    // Dispatch error for session-b
+    listeners.watcherError?.('session-b')
+    expect(onErrorB).toHaveBeenCalledTimes(1)
+
+    // Unsubscribe one — global listener should stay
+    unsubA()
+    expect(unsubscribeWatcherError).not.toHaveBeenCalled()
+
+    // Unsubscribe last — global listener should be cleaned up
+    unsubB()
+    expect(unsubscribeWatcherError).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores watcher errors for sessions with no handlers', async () => {
+    const { listeners } = setupGlobalListenerMocks()
+    const { subscribeWatcherError } = await import('@renderer/lib/eventDispatchers')
+
+    const onError = vi.fn()
+    subscribeWatcherError('session-a', onError)
+
+    // Error for a session that has no subscriber — should not throw
+    listeners.watcherError?.('session-unknown')
+    expect(onError).not.toHaveBeenCalled()
   })
 })

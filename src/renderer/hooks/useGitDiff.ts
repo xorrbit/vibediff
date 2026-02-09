@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ChangedFile, DiffContent } from '@shared/types'
-import { subscribeFileChanged } from '../lib/eventDispatchers'
+import { subscribeFileChanged, subscribeWatcherError } from '../lib/eventDispatchers'
 
 interface UseGitDiffOptions {
   sessionId: string
@@ -338,6 +338,15 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
       }, 300)
     }
 
+    const startFallbackPolling = () => {
+      if (fallbackInterval || cancelled) return
+      fallbackInterval = setInterval(() => {
+        if (!document.hidden && !isRefreshing && enabledRef.current) {
+          loadFilesRef.current?.()
+        }
+      }, 5000)
+    }
+
     const startWatching = async () => {
       let hasNativeWatcher = false
       try {
@@ -350,16 +359,18 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
 
       // Fallback poll every 5s only when native watcher is unavailable
       // (on WSL2 this becomes the primary refresh mechanism)
-      fallbackInterval = setInterval(() => {
-        if (!document.hidden && !isRefreshing && enabledRef.current) {
-          loadFilesRef.current?.()
-        }
-      }, 5000)
+      startFallbackPolling()
     }
 
     const unsubscribe = subscribeFileChanged(sessionId, () => {
       debouncedRefresh()
     })
+
+    // If the watcher hits an OS limit (EMFILE), fall back to polling
+    const unsubscribeError = subscribeWatcherError(sessionId, () => {
+      startFallbackPolling()
+    })
+
     void startWatching()
 
     // Refresh when tab becomes visible (and this tab is active)
@@ -375,6 +386,7 @@ export function useGitDiff({ sessionId, cwd, enabled = true, gitRootHint }: UseG
       if (debounceTimer) clearTimeout(debounceTimer)
       if (fallbackInterval) clearInterval(fallbackInterval)
       unsubscribe()
+      unsubscribeError()
       window.electronAPI.fs.watchStop(sessionId)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }

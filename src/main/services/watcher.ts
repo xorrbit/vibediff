@@ -1,10 +1,11 @@
-import chokidar, { FSWatcher } from 'chokidar'
+import { watch, FSWatcher, readFileSync } from 'fs'
+import { join } from 'path'
 import { platform } from 'os'
-import { readFileSync } from 'fs'
 import { FileChangeEvent } from '@shared/types'
 import { debugLog } from '../logger'
 
 type WatcherCallback = (event: FileChangeEvent) => void
+type ErrorCallback = (sessionId: string, error: Error) => void
 
 interface WatcherInstance {
   watcher: FSWatcher
@@ -15,6 +16,36 @@ interface WatcherInstance {
 }
 
 const DEBOUNCE_MS = 300
+
+// Directories/files to ignore (matched against path segments)
+const IGNORED_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  '.next',
+  'coverage',
+  '.cache',
+  'vendor',
+  'target',
+  '__pycache__',
+])
+
+const IGNORED_EXTENSIONS = new Set(['.log', '.tmp'])
+const IGNORED_FILES = new Set(['.DS_Store'])
+
+function isIgnored(relativePath: string): boolean {
+  const segments = relativePath.split('/')
+  for (const seg of segments) {
+    if (IGNORED_DIRS.has(seg)) return true
+  }
+  const filename = segments[segments.length - 1]
+  if (IGNORED_FILES.has(filename)) return true
+  for (const ext of IGNORED_EXTENSIONS) {
+    if (filename.endsWith(ext)) return true
+  }
+  return false
+}
 
 function isWSL(): boolean {
   if (platform() !== 'linux') return false
@@ -33,7 +64,7 @@ export class FileWatcher {
   /**
    * Start watching a directory for changes.
    */
-  watch(sessionId: string, dir: string, callback: WatcherCallback): boolean {
+  watch(sessionId: string, dir: string, callback: WatcherCallback, onError?: ErrorCallback): boolean {
     // Skip if existing watcher already covers the same directory
     const existing = this.watchers.get(sessionId)
     if (existing && existing.watchedDir === dir) {
@@ -43,42 +74,17 @@ export class FileWatcher {
     // Stop any existing watcher for this session
     this.unwatch(sessionId)
 
-    // WSL2: chokidar polling still stat()s every file in the tree every interval,
+    // WSL2: native fs.watch with recursive still uses inotify under the hood,
     // which overwhelms the 9P filesystem bridge and starves the event loop.
     // Skip file watching entirely — useGitDiff falls back to periodic git status.
     if (IS_WSL) return false
 
     debugLog('Starting file watcher:', { sessionId, dir })
 
-    const watcher = chokidar.watch(dir, {
-      followSymlinks: false,
-      ignored: [
-        '**/node_modules/**',
-        '**/.git/**',
-        '**/dist/**',
-        '**/build/**',
-        '**/.next/**',
-        '**/coverage/**',
-        '**/.cache/**',
-        '**/vendor/**',
-        '**/target/**',
-        '**/__pycache__/**',
-        '**/*.log',
-        '**/*.tmp',
-        '**/.DS_Store',
-      ],
-      persistent: true,
-      ignoreInitial: true,
-      // Use native fs events (inotify/FSEvents) — WSL2 is excluded above
-      usePolling: false,
-      // Handle atomic saves (editors that write to temp file then rename)
-      atomic: true,
-      // Limit depth to avoid watching deeply nested generated dirs
-      depth: 10,
-    })
+    const fsWatcher = watch(dir, { recursive: true })
 
     const instance: WatcherInstance = {
-      watcher,
+      watcher: fsWatcher,
       watchedDir: dir,
       callback,
       debounceTimer: null,
@@ -106,22 +112,25 @@ export class FileWatcher {
       }, DEBOUNCE_MS)
     }
 
-    const handleEvent = (type: FileChangeEvent['type'], path: string) => {
-      instance.pendingEvents.push({
-        sessionId,
-        type,
-        path,
-      })
-      emitDebounced()
-    }
+    fsWatcher.on('change', (eventType: string, filename: string | null) => {
+      if (!filename) return
+      if (isIgnored(filename)) return
 
-    watcher
-      .on('add', (path) => handleEvent('add', path))
-      .on('change', (path) => handleEvent('change', path))
-      .on('unlink', (path) => handleEvent('unlink', path))
-      .on('error', (error) => {
-        console.error(`Watcher error for session ${sessionId}:`, error)
-      })
+      const fullPath = join(dir, filename)
+      // fs.watch reports 'rename' for add/unlink and 'change' for modifications.
+      // Map both to 'change' since useGitDiff just refreshes git status either way.
+      instance.pendingEvents.push({ sessionId, type: 'change', path: fullPath })
+      emitDebounced()
+    })
+
+    fsWatcher.on('error', (error: NodeJS.ErrnoException) => {
+      console.error(`Watcher error for session ${sessionId}:`, error)
+      if (error.code === 'EMFILE' || error.code === 'ENFILE' || error.code === 'ENOSPC') {
+        debugLog('Watcher hit OS limit, closing:', { sessionId, code: error.code })
+        this.unwatch(sessionId)
+        onError?.(sessionId, error)
+      }
+    })
 
     this.watchers.set(sessionId, instance)
     return true

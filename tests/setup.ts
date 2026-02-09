@@ -54,6 +54,7 @@ const mockElectronAPI = {
     watchStart: vi.fn().mockResolvedValue(true),
     watchStop: vi.fn().mockResolvedValue(undefined),
     onFileChanged: vi.fn(() => () => {}),
+    onWatcherError: vi.fn(() => () => {}),
     selectDirectory: vi.fn(),
     startWatching: vi.fn(),
     stopWatching: vi.fn(),

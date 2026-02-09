@@ -105,6 +105,7 @@ describe('registerFsHandlers', () => {
     expect(mockWatch).toHaveBeenCalledWith(
       'session-a',
       '/repo',
+      expect.any(Function),
       expect.any(Function)
     )
 

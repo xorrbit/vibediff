@@ -13,9 +13,16 @@ export function registerFsHandlers(ipcMain: IpcMain) {
     if (!validateIpcSender(event)) throw new Error('Unauthorized IPC sender')
     assertSessionId(sessionId, 'sessionId')
     assertNonEmptyString(dir, 'dir')
-    return fileWatcher.watch(sessionId, dir, (event) => {
-      sendToRenderer(FS_CHANNELS.FILE_CHANGED, event)
-    })
+    return fileWatcher.watch(
+      sessionId,
+      dir,
+      (event) => {
+        sendToRenderer(FS_CHANNELS.FILE_CHANGED, event)
+      },
+      (sid) => {
+        sendToRenderer(FS_CHANNELS.WATCHER_ERROR, sid)
+      }
+    )
   })
 
   ipcMain.handle(FS_CHANNELS.WATCH_STOP, async (event, sessionId: string) => {

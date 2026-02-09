@@ -1,29 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const { mockChokidarWatch, mockPlatform, mockReadFileSync } = vi.hoisted(() => {
+const { mockFsWatch, mockPlatform, mockReadFileSync } = vi.hoisted(() => {
   const mockWatcher = {
     on: vi.fn().mockReturnThis(),
     close: vi.fn(),
   }
   return {
-    mockChokidarWatch: vi.fn(() => mockWatcher),
+    mockFsWatch: vi.fn(() => mockWatcher),
     mockPlatform: vi.fn(),
     mockReadFileSync: vi.fn(),
   }
 })
 
-vi.mock('chokidar', () => {
-  const mod = { watch: mockChokidarWatch }
+vi.mock('fs', () => {
+  const mod = { watch: mockFsWatch, readFileSync: mockReadFileSync }
   return { ...mod, default: mod }
 })
 
 vi.mock('os', () => {
   const mod = { platform: mockPlatform }
-  return { ...mod, default: mod }
-})
-
-vi.mock('fs', () => {
-  const mod = { readFileSync: mockReadFileSync }
   return { ...mod, default: mod }
 })
 
@@ -34,7 +29,7 @@ mockPlatform.mockReturnValue('darwin')
 import { FileWatcher } from '@main/services/watcher'
 
 function getWatcherMock() {
-  return mockChokidarWatch() as ReturnType<typeof mockChokidarWatch>
+  return mockFsWatch() as ReturnType<typeof mockFsWatch>
 }
 
 describe('FileWatcher', () => {
@@ -51,38 +46,10 @@ describe('FileWatcher', () => {
   })
 
   describe('watch', () => {
-    it('creates a chokidar watcher with correct options', () => {
+    it('creates a native fs.watch with recursive: true', () => {
       watcher.watch('session-1', '/project', vi.fn())
 
-      expect(mockChokidarWatch).toHaveBeenCalledWith(
-        '/project',
-        expect.objectContaining({
-          persistent: true,
-          ignoreInitial: true,
-          usePolling: false,
-          depth: 10,
-        })
-      )
-    })
-
-    it('ignores common directories', () => {
-      watcher.watch('session-1', '/project', vi.fn())
-
-      const options = mockChokidarWatch.mock.calls[0][1]
-      expect(options.ignored).toContain('**/node_modules/**')
-      expect(options.ignored).toContain('**/.git/**')
-      expect(options.ignored).toContain('**/dist/**')
-    })
-
-    it('disables symlink following', () => {
-      watcher.watch('session-1', '/project', vi.fn())
-
-      expect(mockChokidarWatch).toHaveBeenCalledWith(
-        '/project',
-        expect.objectContaining({
-          followSymlinks: false,
-        })
-      )
+      expect(mockFsWatch).toHaveBeenCalledWith('/project', { recursive: true })
     })
 
     it('stops existing watcher before creating new one for same session', () => {
@@ -96,29 +63,23 @@ describe('FileWatcher', () => {
 
     it('skips restart when watching same directory for same session', () => {
       watcher.watch('session-1', '/project', vi.fn())
-      // Get the mock watcher *before* clearing call count
       const mock = getWatcherMock()
       mock.close.mockClear()
-      mockChokidarWatch.mockClear()
+      mockFsWatch.mockClear()
 
-      // Watch same dir again
       watcher.watch('session-1', '/project', vi.fn())
 
-      // Should not have created a new chokidar watcher or closed the old one
-      // (mockChokidarWatch calls from getWatcherMock are excluded since we cleared)
-      expect(mockChokidarWatch).not.toHaveBeenCalled()
+      expect(mockFsWatch).not.toHaveBeenCalled()
       expect(mock.close).not.toHaveBeenCalled()
     })
 
-    it('registers event handlers for add, change, unlink, error', () => {
+    it('registers change and error event handlers', () => {
       watcher.watch('session-1', '/project', vi.fn())
 
       const mock = getWatcherMock()
       const registeredEvents = mock.on.mock.calls.map((c: any[]) => c[0])
 
-      expect(registeredEvents).toContain('add')
       expect(registeredEvents).toContain('change')
-      expect(registeredEvents).toContain('unlink')
       expect(registeredEvents).toContain('error')
     })
 
@@ -129,13 +90,10 @@ describe('FileWatcher', () => {
       const mock = getWatcherMock()
       const changeHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'change')![1]
 
-      // Trigger a change event
-      changeHandler('/project/file.ts')
+      changeHandler('change', 'file.ts')
 
-      // Should not fire immediately
       expect(callback).not.toHaveBeenCalled()
 
-      // Advance by 300ms
       vi.advanceTimersByTime(300)
 
       expect(callback).toHaveBeenCalledWith({
@@ -152,14 +110,12 @@ describe('FileWatcher', () => {
       const mock = getWatcherMock()
       const changeHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'change')![1]
 
-      // Trigger multiple changes for the same file
-      changeHandler('/project/file.ts')
-      changeHandler('/project/file.ts')
-      changeHandler('/project/file.ts')
+      changeHandler('change', 'file.ts')
+      changeHandler('change', 'file.ts')
+      changeHandler('change', 'file.ts')
 
       vi.advanceTimersByTime(300)
 
-      // Should only fire once
       expect(callback).toHaveBeenCalledTimes(1)
     })
 
@@ -169,10 +125,9 @@ describe('FileWatcher', () => {
 
       const mock = getWatcherMock()
       const changeHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'change')![1]
-      const addHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'add')![1]
 
-      changeHandler('/project/file1.ts')
-      addHandler('/project/file2.ts')
+      changeHandler('change', 'file1.ts')
+      changeHandler('rename', 'file2.ts')
 
       vi.advanceTimersByTime(300)
 
@@ -186,20 +141,142 @@ describe('FileWatcher', () => {
       const mock = getWatcherMock()
       const changeHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'change')![1]
 
-      changeHandler('/project/file.ts')
+      changeHandler('change', 'file.ts')
       vi.advanceTimersByTime(200)
 
-      // New event resets the timer
-      changeHandler('/project/file2.ts')
+      changeHandler('change', 'file2.ts')
       vi.advanceTimersByTime(200)
 
-      // Not yet fired (only 200ms since last event)
       expect(callback).not.toHaveBeenCalled()
 
       vi.advanceTimersByTime(100)
 
-      // Now fired (300ms since last event)
       expect(callback).toHaveBeenCalled()
+    })
+
+    it('ignores events for node_modules, .git, and other ignored dirs', () => {
+      const callback = vi.fn()
+      watcher.watch('session-1', '/project', callback)
+
+      const mock = getWatcherMock()
+      const changeHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'change')![1]
+
+      changeHandler('change', 'node_modules/foo/index.js')
+      changeHandler('change', '.git/HEAD')
+      changeHandler('change', 'dist/bundle.js')
+      changeHandler('change', '__pycache__/mod.pyc')
+
+      vi.advanceTimersByTime(300)
+
+      expect(callback).not.toHaveBeenCalled()
+    })
+
+    it('ignores .log, .tmp, and .DS_Store files', () => {
+      const callback = vi.fn()
+      watcher.watch('session-1', '/project', callback)
+
+      const mock = getWatcherMock()
+      const changeHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'change')![1]
+
+      changeHandler('change', 'app.log')
+      changeHandler('change', 'temp.tmp')
+      changeHandler('change', '.DS_Store')
+
+      vi.advanceTimersByTime(300)
+
+      expect(callback).not.toHaveBeenCalled()
+    })
+
+    it('ignores events with null filename', () => {
+      const callback = vi.fn()
+      watcher.watch('session-1', '/project', callback)
+
+      const mock = getWatcherMock()
+      const changeHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'change')![1]
+
+      changeHandler('change', null)
+
+      vi.advanceTimersByTime(300)
+
+      expect(callback).not.toHaveBeenCalled()
+    })
+
+    it('calls onError and unwatches on EMFILE', () => {
+      const callback = vi.fn()
+      const onError = vi.fn()
+      watcher.watch('session-1', '/project', callback, onError)
+
+      const mock = getWatcherMock()
+      const errorHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'error')![1]
+
+      const emfileError = Object.assign(new Error('EMFILE'), { code: 'EMFILE' })
+      errorHandler(emfileError)
+
+      expect(onError).toHaveBeenCalledWith('session-1', emfileError)
+      expect(mock.close).toHaveBeenCalled()
+    })
+
+    it('calls onError and unwatches on ENFILE', () => {
+      const callback = vi.fn()
+      const onError = vi.fn()
+      watcher.watch('session-1', '/project', callback, onError)
+
+      const mock = getWatcherMock()
+      const errorHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'error')![1]
+
+      const enfileError = Object.assign(new Error('ENFILE'), { code: 'ENFILE' })
+      errorHandler(enfileError)
+
+      expect(onError).toHaveBeenCalledWith('session-1', enfileError)
+      expect(mock.close).toHaveBeenCalled()
+    })
+
+    it('calls onError and unwatches on ENOSPC', () => {
+      const callback = vi.fn()
+      const onError = vi.fn()
+      watcher.watch('session-1', '/project', callback, onError)
+
+      const mock = getWatcherMock()
+      const errorHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'error')![1]
+
+      const enospcError = Object.assign(new Error('ENOSPC'), { code: 'ENOSPC' })
+      errorHandler(enospcError)
+
+      expect(onError).toHaveBeenCalledWith('session-1', enospcError)
+      expect(mock.close).toHaveBeenCalled()
+    })
+
+    it('does not unwatch on non-limit errors', () => {
+      const callback = vi.fn()
+      const onError = vi.fn()
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      watcher.watch('session-1', '/project', callback, onError)
+
+      const mock = getWatcherMock()
+      mock.close.mockClear()
+      const errorHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'error')![1]
+
+      const otherError = Object.assign(new Error('EPERM'), { code: 'EPERM' })
+      errorHandler(otherError)
+
+      expect(onError).not.toHaveBeenCalled()
+      expect(mock.close).not.toHaveBeenCalled()
+      consoleSpy.mockRestore()
+    })
+
+    it('handles missing onError callback gracefully', () => {
+      const callback = vi.fn()
+      // No onError passed
+      watcher.watch('session-1', '/project', callback)
+
+      const mock = getWatcherMock()
+      const errorHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'error')![1]
+
+      const emfileError = Object.assign(new Error('EMFILE'), { code: 'EMFILE' })
+      // Should not throw
+      errorHandler(emfileError)
+
+      expect(mock.close).toHaveBeenCalled()
     })
   })
 
@@ -213,8 +290,25 @@ describe('FileWatcher', () => {
       expect(mock.close).toHaveBeenCalled()
     })
 
+    it('cancels pending debounced events', () => {
+      const callback = vi.fn()
+      watcher.watch('session-1', '/project', callback)
+
+      const mock = getWatcherMock()
+      const changeHandler = mock.on.mock.calls.find((c: any[]) => c[0] === 'change')![1]
+
+      // Trigger a change that starts debounce timer
+      changeHandler('change', 'file.ts')
+
+      // Unwatch before debounce fires
+      watcher.unwatch('session-1')
+
+      // Advance past debounce — callback should NOT fire
+      vi.advanceTimersByTime(500)
+      expect(callback).not.toHaveBeenCalled()
+    })
+
     it('does nothing for non-existent session', () => {
-      // Should not throw
       watcher.unwatch('nonexistent')
     })
   })
@@ -228,5 +322,59 @@ describe('FileWatcher', () => {
 
       expect(getWatcherMock().close).toHaveBeenCalled()
     })
+  })
+})
+
+describe('FileWatcher WSL detection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.resetModules()
+  })
+
+  it('returns false on WSL (skips watching)', async () => {
+    mockPlatform.mockReturnValue('linux')
+    mockReadFileSync.mockReturnValue('Linux version 5.15.0-1-microsoft-standard-WSL2')
+
+    const { FileWatcher: WSLFileWatcher } = await import('@main/services/watcher')
+    const w = new WSLFileWatcher()
+    const result = w.watch('session-1', '/project', vi.fn())
+
+    expect(result).toBe(false)
+    expect(mockFsWatch).not.toHaveBeenCalled()
+  })
+
+  it('returns true on native Linux (starts watching)', async () => {
+    mockPlatform.mockReturnValue('linux')
+    mockReadFileSync.mockReturnValue('Linux version 6.1.0-generic')
+
+    const { FileWatcher: LinuxFileWatcher } = await import('@main/services/watcher')
+    const w = new LinuxFileWatcher()
+    const result = w.watch('session-1', '/project', vi.fn())
+
+    expect(result).toBe(true)
+    expect(mockFsWatch).toHaveBeenCalled()
+  })
+
+  it('returns true on macOS (starts watching)', async () => {
+    mockPlatform.mockReturnValue('darwin')
+
+    const { FileWatcher: DarwinFileWatcher } = await import('@main/services/watcher')
+    const w = new DarwinFileWatcher()
+    const result = w.watch('session-1', '/project', vi.fn())
+
+    expect(result).toBe(true)
+    expect(mockFsWatch).toHaveBeenCalled()
+  })
+
+  it('handles /proc/version read failure gracefully (not WSL)', async () => {
+    mockPlatform.mockReturnValue('linux')
+    mockReadFileSync.mockImplementation(() => { throw new Error('ENOENT') })
+
+    const { FileWatcher: FallbackFileWatcher } = await import('@main/services/watcher')
+    const w = new FallbackFileWatcher()
+    const result = w.watch('session-1', '/project', vi.fn())
+
+    expect(result).toBe(true)
+    expect(mockFsWatch).toHaveBeenCalled()
   })
 })

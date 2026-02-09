@@ -33,6 +33,7 @@ export const FS_CHANNELS = {
   WATCH_START: 'fs:watchStart',
   WATCH_STOP: 'fs:watchStop',
   FILE_CHANGED: 'fs:fileChanged',
+  WATCHER_ERROR: 'fs:watcherError',
   SELECT_DIRECTORY: 'fs:selectDirectory',
   GET_HOME_DIR: 'fs:getHomeDir',
 } as const
@@ -147,6 +148,7 @@ export interface ElectronAPI {
     watchStart: (sessionId: string, dir: string) => Promise<boolean>
     watchStop: (sessionId: string) => Promise<void>
     onFileChanged: (callback: (event: FileChangeEvent) => void) => () => void
+    onWatcherError: (callback: (sessionId: string) => void) => () => void
     selectDirectory: () => Promise<string | null>
     getHomeDir: () => Promise<string>
   }

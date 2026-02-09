@@ -97,6 +97,14 @@ const electronAPI: ElectronAPI = {
       return () => ipcRenderer.removeListener(FS_CHANNELS.FILE_CHANGED, listener)
     },
 
+    onWatcherError: (callback: (sessionId: string) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, sessionId: string) => {
+        callback(sessionId)
+      }
+      ipcRenderer.on(FS_CHANNELS.WATCHER_ERROR, listener)
+      return () => ipcRenderer.removeListener(FS_CHANNELS.WATCHER_ERROR, listener)
+    },
+
     selectDirectory: (): Promise<string | null> =>
       ipcRenderer.invoke(FS_CHANNELS.SELECT_DIRECTORY),
 

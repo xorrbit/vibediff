@@ -28,7 +28,7 @@ export default defineConfig({
             outDir: 'dist/main',
             sourcemap: false,
             rollupOptions: {
-              external: ['electron', 'node-pty', 'chokidar', 'simple-git'],
+              external: ['electron', 'node-pty', 'simple-git'],
             },
           },
         },
