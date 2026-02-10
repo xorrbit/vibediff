@@ -13,15 +13,6 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | null>(null)
 
-function mapsEqual<K, V>(a: Map<K, V>, b: Map<K, V>): boolean {
-  if (a === b) return true
-  if (a.size !== b.size) return false
-  for (const [key, value] of a) {
-    if (!b.has(key) || b.get(key) !== value) return false
-  }
-  return true
-}
-
 function generateId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
@@ -142,19 +133,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const gitRootUpdates = new Map<string, string | null>()
 
         const currentSessions = sessionsRef.current
+        const currentSessionIds = new Set(currentSessions.map((s) => s.id))
 
         // Poll all sessions concurrently instead of sequentially
         await Promise.all(currentSessions.map(async (session) => {
           try {
             // Get current cwd from terminal
             const currentCwd = await window.electronAPI.pty.getCwd(session.id)
-            const cwd = currentCwd || session.cwd
+
+            // If getCwd failed (e.g. lsof timeout on macOS), skip this session
+            // entirely — preserve whatever CWD/gitRoot we had before rather than
+            // falling back to the stale initial session.cwd (typically home dir).
+            if (!currentCwd) return
 
             // Track CWD
-            cwdUpdates.set(session.id, cwd)
+            cwdUpdates.set(session.id, currentCwd)
 
             // Resolve git root first — skip branch lookup for non-git dirs
-            const root = await window.electronAPI.git.findGitRoot(cwd)
+            const root = await window.electronAPI.git.findGitRoot(currentCwd)
             gitRootUpdates.set(session.id, root)
 
             let branch: string | null = null
@@ -162,19 +158,54 @@ export function SessionProvider({ children }: { children: ReactNode }) {
               // Pass git root so SimpleGit instance is reused correctly
               branch = await window.electronAPI.git.getCurrentBranch(root)
             }
-            const newName = getSessionName(branch, cwd)
+            const newName = getSessionName(branch, currentCwd)
 
             if (newName !== session.name) {
               nameUpdates.push({ id: session.id, name: newName })
             }
           } catch {
-            // Ignore errors
+            // Ignore errors — session keeps its previous CWD/gitRoot
           }
         }))
 
-        // Update CWDs and git roots
-        setSessionCwds((prev) => (mapsEqual(prev, cwdUpdates) ? prev : cwdUpdates))
-        setSessionGitRoots((prev) => (mapsEqual(prev, gitRootUpdates) ? prev : gitRootUpdates))
+        // Merge updates into existing maps instead of replacing them wholesale.
+        // Sessions where getCwd failed (or threw) are simply not in the update
+        // maps, so their previous values are preserved.
+        setSessionCwds((prev) => {
+          let changed = false
+          const next = new Map(prev)
+          for (const [key, value] of cwdUpdates) {
+            if (next.get(key) !== value) {
+              next.set(key, value)
+              changed = true
+            }
+          }
+          // Clean up entries for closed sessions
+          for (const key of prev.keys()) {
+            if (!currentSessionIds.has(key)) {
+              next.delete(key)
+              changed = true
+            }
+          }
+          return changed ? next : prev
+        })
+        setSessionGitRoots((prev) => {
+          let changed = false
+          const next = new Map(prev)
+          for (const [key, value] of gitRootUpdates) {
+            if (next.get(key) !== value) {
+              next.set(key, value)
+              changed = true
+            }
+          }
+          for (const key of prev.keys()) {
+            if (!currentSessionIds.has(key)) {
+              next.delete(key)
+              changed = true
+            }
+          }
+          return changed ? next : prev
+        })
 
         // Update names if changed
         if (nameUpdates.length > 0) {
