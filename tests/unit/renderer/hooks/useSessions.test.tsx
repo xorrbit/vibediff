@@ -415,6 +415,148 @@ describe('useSessions (SessionContext)', () => {
     })
   })
 
+  describe('reorderSession', () => {
+    it('moves a session forward in the list', async () => {
+      const restoreDocumentHidden = forceDocumentHidden(true)
+      try {
+        const { result } = renderHook(() => useSessionContext(), { wrapper })
+
+        await waitFor(() => {
+          expect(result.current.sessions).toHaveLength(1)
+        })
+
+        await act(async () => {
+          await result.current.createSession('/test/one')
+          await result.current.createSession('/test/two')
+        })
+
+        expect(result.current.sessions).toHaveLength(3)
+        const originalOrder = result.current.sessions.map((s) => s.cwd)
+
+        // Move first session (index 0) to index 2
+        act(() => {
+          result.current.reorderSession(0, 2)
+        })
+
+        const newOrder = result.current.sessions.map((s) => s.cwd)
+        expect(newOrder[0]).toBe(originalOrder[1])
+        expect(newOrder[1]).toBe(originalOrder[2])
+        expect(newOrder[2]).toBe(originalOrder[0])
+      } finally {
+        restoreDocumentHidden()
+      }
+    })
+
+    it('moves a session backward in the list', async () => {
+      const restoreDocumentHidden = forceDocumentHidden(true)
+      try {
+        const { result } = renderHook(() => useSessionContext(), { wrapper })
+
+        await waitFor(() => {
+          expect(result.current.sessions).toHaveLength(1)
+        })
+
+        await act(async () => {
+          await result.current.createSession('/test/one')
+          await result.current.createSession('/test/two')
+        })
+
+        const originalOrder = result.current.sessions.map((s) => s.cwd)
+
+        // Move last session (index 2) to index 0
+        act(() => {
+          result.current.reorderSession(2, 0)
+        })
+
+        const newOrder = result.current.sessions.map((s) => s.cwd)
+        expect(newOrder[0]).toBe(originalOrder[2])
+        expect(newOrder[1]).toBe(originalOrder[0])
+        expect(newOrder[2]).toBe(originalOrder[1])
+      } finally {
+        restoreDocumentHidden()
+      }
+    })
+
+    it('does nothing when fromIndex equals toIndex', async () => {
+      const restoreDocumentHidden = forceDocumentHidden(true)
+      try {
+        const { result } = renderHook(() => useSessionContext(), { wrapper })
+
+        await waitFor(() => {
+          expect(result.current.sessions).toHaveLength(1)
+        })
+
+        await act(async () => {
+          await result.current.createSession('/test/one')
+        })
+
+        const sessionsBefore = result.current.sessions
+
+        act(() => {
+          result.current.reorderSession(0, 0)
+        })
+
+        // Should return same reference (no-op)
+        expect(result.current.sessions).toBe(sessionsBefore)
+      } finally {
+        restoreDocumentHidden()
+      }
+    })
+
+    it('does nothing for out-of-bounds indices', async () => {
+      const restoreDocumentHidden = forceDocumentHidden(true)
+      try {
+        const { result } = renderHook(() => useSessionContext(), { wrapper })
+
+        await waitFor(() => {
+          expect(result.current.sessions).toHaveLength(1)
+        })
+
+        const sessionsBefore = result.current.sessions
+
+        act(() => {
+          result.current.reorderSession(-1, 0)
+        })
+        expect(result.current.sessions).toBe(sessionsBefore)
+
+        act(() => {
+          result.current.reorderSession(0, 5)
+        })
+        expect(result.current.sessions).toBe(sessionsBefore)
+      } finally {
+        restoreDocumentHidden()
+      }
+    })
+
+    it('preserves active session after reorder', async () => {
+      const restoreDocumentHidden = forceDocumentHidden(true)
+      try {
+        const { result } = renderHook(() => useSessionContext(), { wrapper })
+
+        await waitFor(() => {
+          expect(result.current.sessions).toHaveLength(1)
+        })
+
+        await act(async () => {
+          await result.current.createSession('/test/one')
+          await result.current.createSession('/test/two')
+        })
+
+        // Last created session is active
+        const activeId = result.current.activeSessionId
+
+        act(() => {
+          result.current.reorderSession(0, 2)
+        })
+
+        // Active session ID should not change
+        expect(result.current.activeSessionId).toBe(activeId)
+      } finally {
+        restoreDocumentHidden()
+      }
+    })
+  })
+
   describe('CWD tracking', () => {
     it('updates sessionCwds when polling', async () => {
       vi.useFakeTimers()

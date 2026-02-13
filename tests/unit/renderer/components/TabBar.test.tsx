@@ -264,6 +264,82 @@ describe('TabBar', () => {
     expect(screen.queryByText('API')).not.toBeInTheDocument()
   })
 
+  describe('tab reordering', () => {
+    it('passes onReorder to Tab components', () => {
+      const onReorder = vi.fn()
+      const { container } = render(
+        <TabBar
+          sessions={mockSessions}
+          activeSessionId="1"
+          waitingSessionIds={new Set()}
+          onTabSelect={vi.fn()}
+          onTabClose={vi.fn()}
+          onNewTab={vi.fn()}
+          onReorder={onReorder}
+        />
+      )
+
+      // All tab buttons should be draggable
+      const tabButtons = container.querySelectorAll('button[draggable="true"]')
+      expect(tabButtons.length).toBe(mockSessions.length)
+    })
+
+    it('passes onReorder to Tab components in left mode', () => {
+      const onReorder = vi.fn()
+      const { container } = render(
+        <TabBar
+          sessions={mockSessions}
+          activeSessionId="1"
+          waitingSessionIds={new Set()}
+          position="left"
+          onTabSelect={vi.fn()}
+          onTabClose={vi.fn()}
+          onNewTab={vi.fn()}
+          onReorder={onReorder}
+        />
+      )
+
+      const tabButtons = container.querySelectorAll('button[draggable="true"]')
+      expect(tabButtons.length).toBe(mockSessions.length)
+    })
+
+    it('calls onReorder when a tab is drag-and-dropped', () => {
+      const onReorder = vi.fn()
+      render(
+        <TabBar
+          sessions={mockSessions}
+          activeSessionId="1"
+          waitingSessionIds={new Set()}
+          onTabSelect={vi.fn()}
+          onTabClose={vi.fn()}
+          onNewTab={vi.fn()}
+          onReorder={onReorder}
+        />
+      )
+
+      const tab1 = screen.getByText('project1').closest('button')!
+      const tab3 = screen.getByText('project3').closest('button')!
+
+      // Mock getBoundingClientRect for drop target
+      vi.spyOn(tab3, 'getBoundingClientRect').mockReturnValue({
+        left: 200, right: 300, top: 0, bottom: 40,
+        width: 100, height: 40, x: 200, y: 0, toJSON: () => {},
+      })
+
+      // Drag tab1 (index 0) and drop on tab3 (index 2)
+      fireEvent.dragStart(tab1, {
+        dataTransfer: { setData: vi.fn(), effectAllowed: '' },
+      })
+
+      fireEvent.drop(tab3, {
+        dataTransfer: { getData: () => '0' },
+        clientX: 270, clientY: 20,
+      })
+
+      expect(onReorder).toHaveBeenCalledWith(0, 2)
+    })
+  })
+
   describe('left position (sidebar)', () => {
     it('renders tabs in left mode', () => {
       render(

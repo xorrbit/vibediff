@@ -88,6 +88,133 @@ describe('Tab', () => {
     expect(button.style.animationDelay).toBe('100ms') // 2 * 50ms
   })
 
+  describe('drag and drop', () => {
+    const mockDataTransfer = {
+      setData: vi.fn(),
+      getData: vi.fn(() => '0'),
+      effectAllowed: '' as string,
+      dropEffect: '' as string,
+    }
+
+    it('sets draggable attribute on the button', () => {
+      const { container } = render(<Tab {...defaultProps} />)
+      const button = container.querySelector('button')!
+      expect(button).toHaveAttribute('draggable', 'true')
+    })
+
+    it('reduces opacity when dragging', () => {
+      const { container } = render(<Tab {...defaultProps} />)
+      const button = container.querySelector('button')!
+
+      fireEvent.dragStart(button, { dataTransfer: mockDataTransfer })
+
+      expect(button.className).toContain('opacity-50')
+    })
+
+    it('restores opacity on drag end', () => {
+      const { container } = render(<Tab {...defaultProps} />)
+      const button = container.querySelector('button')!
+
+      fireEvent.dragStart(button, { dataTransfer: mockDataTransfer })
+      expect(button.className).toContain('opacity-50')
+
+      fireEvent.dragEnd(button)
+      expect(button.className).not.toContain('opacity-50')
+    })
+
+    it('stores index in dataTransfer on drag start', () => {
+      const setData = vi.fn()
+      const { container } = render(<Tab {...defaultProps} index={2} />)
+      const button = container.querySelector('button')!
+
+      fireEvent.dragStart(button, {
+        dataTransfer: { ...mockDataTransfer, setData },
+      })
+
+      expect(setData).toHaveBeenCalledWith('text/plain', '2')
+    })
+
+    it('shows drop indicator on drag over', () => {
+      const { container } = render(<Tab {...defaultProps} />)
+      const button = container.querySelector('button')!
+
+      fireEvent.dragOver(button, { dataTransfer: mockDataTransfer })
+
+      const indicator = container.querySelector('.bg-obsidian-accent')
+      expect(indicator).toBeInTheDocument()
+    })
+
+    it('clears drop indicator on drag leave', () => {
+      const { container } = render(<Tab {...defaultProps} />)
+      const button = container.querySelector('button')!
+
+      fireEvent.dragOver(button, { dataTransfer: mockDataTransfer })
+      expect(container.querySelector('.bg-obsidian-accent')).toBeInTheDocument()
+
+      fireEvent.dragLeave(button)
+      expect(container.querySelector('.bg-obsidian-accent')).not.toBeInTheDocument()
+    })
+
+    it('calls onReorder on drop — dragging forward', () => {
+      const onReorder = vi.fn()
+      const { container } = render(<Tab {...defaultProps} index={2} onReorder={onReorder} />)
+      const button = container.querySelector('button')!
+
+      // Drop from index 0 onto index 2
+      fireEvent.drop(button, {
+        dataTransfer: { ...mockDataTransfer, getData: () => '0' },
+      })
+
+      expect(onReorder).toHaveBeenCalledWith(0, 2)
+    })
+
+    it('calls onReorder on drop — dragging backward', () => {
+      const onReorder = vi.fn()
+      const { container } = render(<Tab {...defaultProps} index={0} onReorder={onReorder} />)
+      const button = container.querySelector('button')!
+
+      // Drop from index 2 onto index 0
+      fireEvent.drop(button, {
+        dataTransfer: { ...mockDataTransfer, getData: () => '2' },
+      })
+
+      // jsdom returns zero-sized rects so position resolves to "after" → index + 1
+      expect(onReorder).toHaveBeenCalledWith(2, 1)
+    })
+
+    it('does not call onReorder when dropping on self', () => {
+      const onReorder = vi.fn()
+      const { container } = render(<Tab {...defaultProps} index={1} onReorder={onReorder} />)
+      const button = container.querySelector('button')!
+
+      fireEvent.drop(button, {
+        dataTransfer: { ...mockDataTransfer, getData: () => '1' },
+      })
+
+      expect(onReorder).not.toHaveBeenCalled()
+    })
+
+    it('does not call onReorder when onReorder prop is not provided', () => {
+      const { container } = render(<Tab {...defaultProps} index={0} />)
+      const button = container.querySelector('button')!
+
+      // Should not throw
+      fireEvent.drop(button, {
+        dataTransfer: { ...mockDataTransfer, getData: () => '2' },
+      })
+    })
+
+    it('shows drop indicator in vertical mode', () => {
+      const { container } = render(<Tab {...defaultProps} vertical />)
+      const button = container.querySelector('button')!
+
+      fireEvent.dragOver(button, { dataTransfer: mockDataTransfer })
+
+      const indicator = container.querySelector('.bg-obsidian-accent')
+      expect(indicator).toBeInTheDocument()
+    })
+  })
+
   describe('vertical mode', () => {
     it('uses full width and rounded-l-lg styling', () => {
       const { container } = render(<Tab {...defaultProps} vertical />)

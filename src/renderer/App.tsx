@@ -21,6 +21,7 @@ function AppContent() {
     createSession,
     closeSession,
     setActiveSession,
+    reorderSession,
   } = useSessions()
   const waitingIds = useInputWaiting(sessions, activeSessionId)
 
@@ -253,6 +254,7 @@ function AppContent() {
       onTabClose={guardedCloseSession}
       onNewTab={createSession}
       onOpenSettings={handleShowSettings}
+      onReorder={reorderSession}
     />
   )
 

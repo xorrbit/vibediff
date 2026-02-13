@@ -9,6 +9,7 @@ interface SessionContextType {
   createSession: (cwd?: string, bootstrapCommands?: string[]) => Promise<string>
   closeSession: (id: string) => void
   setActiveSession: (id: string) => void
+  reorderSession: (fromIndex: number, toIndex: number) => void
 }
 
 const SessionContext = createContext<SessionContextType | null>(null)
@@ -102,6 +103,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const setActiveSession = useCallback((id: string) => {
     setActiveSessionId(id)
+  }, [])
+
+  const reorderSession = useCallback((fromIndex: number, toIndex: number) => {
+    setSessions((prev) => {
+      if (fromIndex === toIndex) return prev
+      if (fromIndex < 0 || fromIndex >= prev.length) return prev
+      if (toIndex < 0 || toIndex >= prev.length) return prev
+      const next = [...prev]
+      const [moved] = next.splice(fromIndex, 1)
+      next.splice(toIndex, 0, moved)
+      return next
+    })
   }, [])
 
   // Create initial session on launch
@@ -329,7 +342,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     createSession,
     closeSession,
     setActiveSession,
-  }), [sessions, activeSessionId, sessionCwds, sessionGitRoots, createSession, closeSession, setActiveSession])
+    reorderSession,
+  }), [sessions, activeSessionId, sessionCwds, sessionGitRoots, createSession, closeSession, setActiveSession, reorderSession])
 
   return (
     <SessionContext.Provider value={contextValue}>

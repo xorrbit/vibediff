@@ -15,6 +15,7 @@ interface TabBarProps {
   onTabClose: (id: string) => void | Promise<void>
   onNewTab: () => void
   onOpenSettings?: () => void
+  onReorder?: (fromIndex: number, toIndex: number) => void
 }
 
 export const TabBar = memo(function TabBar({
@@ -27,6 +28,7 @@ export const TabBar = memo(function TabBar({
   onTabClose,
   onNewTab,
   onOpenSettings,
+  onReorder,
 }: TabBarProps) {
   const dragStateRef = useRef<{
     startMouseX: number
@@ -157,6 +159,7 @@ export const TabBar = memo(function TabBar({
               onClose={onTabClose}
               index={index}
               vertical
+              onReorder={onReorder}
             />
           ))}
 
@@ -237,6 +240,7 @@ export const TabBar = memo(function TabBar({
             onSelect={onTabSelect}
             onClose={onTabClose}
             index={index}
+            onReorder={onReorder}
           />
         ))}
 
