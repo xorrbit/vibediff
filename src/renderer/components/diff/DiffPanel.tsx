@@ -11,6 +11,8 @@ interface DiffPanelProps {
   onFocusTerminal?: () => void
   diffViewMode: DiffViewMode
   onDiffViewModeChange: (mode: DiffViewMode) => void
+  wordWrap: boolean
+  onWordWrapChange: (enabled: boolean) => void
 }
 
 export const DiffPanel = memo(function DiffPanel({
@@ -21,6 +23,8 @@ export const DiffPanel = memo(function DiffPanel({
   onFocusTerminal,
   diffViewMode,
   onDiffViewModeChange,
+  wordWrap,
+  onWordWrapChange,
 }: DiffPanelProps) {
   const {
     files,
@@ -383,6 +387,15 @@ export const DiffPanel = memo(function DiffPanel({
             </button>
             <div className="flex-1" />
             <button
+              className={`p-1 rounded transition-all duration-200 hover:bg-obsidian-float/50 flex-shrink-0 ${wordWrap ? 'text-obsidian-accent' : 'text-obsidian-text-muted hover:text-obsidian-accent'}`}
+              onClick={() => { onWordWrapChange(!wordWrap); onFocusTerminal?.() }}
+              title={`Word wrap: ${wordWrap ? 'On' : 'Off'}`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M3 12h15a3 3 0 010 6H9m0 0l3-3m-3 3l3 3" />
+              </svg>
+            </button>
+            <button
               className="text-obsidian-text-muted hover:text-obsidian-accent p-1 rounded transition-all duration-200 hover:bg-obsidian-float/50 flex-shrink-0"
               onClick={cycleDiffViewMode}
               title={`View: ${diffViewMode === 'auto' ? 'Automatic' : diffViewMode === 'unified' ? 'Unified' : 'Split'}`}
@@ -412,6 +425,7 @@ export const DiffPanel = memo(function DiffPanel({
             diffContent={diffContent}
             isLoading={isDiffLoading || (isLoading && !!selectedFile)}
             viewMode={diffViewMode}
+            wordWrap={wordWrap}
           />
         </div>
       </div>

@@ -10,6 +10,8 @@ interface SettingsModalProps {
   onUiScaleChange: (scale: number) => void
   diffViewMode: DiffViewMode
   onDiffViewModeChange: (mode: DiffViewMode) => void
+  wordWrap: boolean
+  onWordWrapChange: (enabled: boolean) => void
   tabPosition: TabPosition
   onTabPositionChange: (position: TabPosition) => void
   automationEnabled: boolean
@@ -22,7 +24,7 @@ const SCALE_STEP = 0.05
 
 const isMac = typeof navigator !== 'undefined' && navigator.platform.includes('Mac')
 
-export function SettingsModal({ isOpen, onClose, uiScale, onUiScaleChange, diffViewMode, onDiffViewModeChange, tabPosition, onTabPositionChange, automationEnabled, onAutomationToggle }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, uiScale, onUiScaleChange, diffViewMode, onDiffViewModeChange, wordWrap, onWordWrapChange, tabPosition, onTabPositionChange, automationEnabled, onAutomationToggle }: SettingsModalProps) {
   const [confirmingApi, setConfirmingApi] = useState(false)
   const [apiToggling, setApiToggling] = useState(false)
   const [apiErrorConfigPath, setApiErrorConfigPath] = useState<string | null>(null)
@@ -215,6 +217,37 @@ export function SettingsModal({ isOpen, onClose, uiScale, onUiScaleChange, diffV
                     `}
                     onClick={() => onDiffViewModeChange(mode)}
                     title={`Set diff view to ${label}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-obsidian-border-subtle" />
+
+          {/* Word Wrap */}
+          <div>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-obsidian-text">Word Wrap</span>
+                <p className="text-xs text-obsidian-text-ghost mt-0.5">Wrap long lines in the diff viewer</p>
+              </div>
+              <div className="flex items-center rounded-lg border border-obsidian-border-subtle overflow-hidden">
+                {([['off', 'Off'], ['on', 'On']] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    className={`
+                      px-3 py-1.5 text-xs font-medium transition-all duration-200
+                      ${(value === 'on') === wordWrap
+                        ? 'bg-obsidian-accent/15 text-obsidian-accent'
+                        : 'text-obsidian-text-secondary hover:text-obsidian-text hover:bg-obsidian-float'
+                      }
+                    `}
+                    onClick={() => onWordWrapChange(value === 'on')}
+                    title={`${label === 'On' ? 'Enable' : 'Disable'} word wrap`}
                   >
                     {label}
                   </button>

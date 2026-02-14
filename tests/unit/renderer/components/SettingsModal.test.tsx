@@ -10,6 +10,8 @@ describe('SettingsModal', () => {
     onUiScaleChange: vi.fn(),
     diffViewMode: 'unified' as const,
     onDiffViewModeChange: vi.fn(),
+    wordWrap: false,
+    onWordWrapChange: vi.fn(),
     tabPosition: 'top' as const,
     onTabPositionChange: vi.fn(),
     automationEnabled: false,
@@ -201,6 +203,43 @@ describe('SettingsModal', () => {
       fireEvent.click(screen.getByTitle('Place tabs at the top'))
 
       expect(onTabPositionChange).toHaveBeenCalledWith('top')
+    })
+  })
+
+  describe('Word wrap selector', () => {
+    it('displays "Word Wrap" label', () => {
+      render(<SettingsModal {...defaultProps} />)
+      expect(screen.getByText('Word Wrap')).toBeInTheDocument()
+    })
+
+    it('highlights Off when wordWrap is false', () => {
+      render(<SettingsModal {...defaultProps} wordWrap={false} />)
+      const offButton = screen.getByTitle('Disable word wrap')
+      expect(offButton.className).toContain('bg-obsidian-accent')
+    })
+
+    it('highlights On when wordWrap is true', () => {
+      render(<SettingsModal {...defaultProps} wordWrap={true} />)
+      const onButton = screen.getByTitle('Enable word wrap')
+      expect(onButton.className).toContain('bg-obsidian-accent')
+    })
+
+    it('clicking On calls onWordWrapChange(true)', () => {
+      const onWordWrapChange = vi.fn()
+      render(<SettingsModal {...defaultProps} wordWrap={false} onWordWrapChange={onWordWrapChange} />)
+
+      fireEvent.click(screen.getByTitle('Enable word wrap'))
+
+      expect(onWordWrapChange).toHaveBeenCalledWith(true)
+    })
+
+    it('clicking Off calls onWordWrapChange(false)', () => {
+      const onWordWrapChange = vi.fn()
+      render(<SettingsModal {...defaultProps} wordWrap={true} onWordWrapChange={onWordWrapChange} />)
+
+      fireEvent.click(screen.getByTitle('Disable word wrap'))
+
+      expect(onWordWrapChange).toHaveBeenCalledWith(false)
     })
   })
 

@@ -53,6 +53,8 @@ describe('DiffPanel', () => {
 
   const defaultDiffViewMode = 'unified' as const
   const defaultOnDiffViewModeChange = vi.fn()
+  const defaultWordWrap = false
+  const defaultOnWordWrapChange = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -68,7 +70,7 @@ describe('DiffPanel', () => {
       refresh,
     })
 
-    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
     expect(screen.getByText('Git repository not found')).toBeInTheDocument()
     expect(screen.getByText('Try again')).toBeInTheDocument()
@@ -83,7 +85,7 @@ describe('DiffPanel', () => {
       files: [{ path: 'file.ts', status: 'M' }],
     })
 
-    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
     expect(screen.getByTestId('mock-file-list')).toBeInTheDocument()
     expect(screen.getByTestId('mock-diff-view')).toBeInTheDocument()
@@ -98,7 +100,7 @@ describe('DiffPanel', () => {
       ],
     })
 
-    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
     expect(screen.getByText('2')).toBeInTheDocument()
   })
@@ -109,13 +111,13 @@ describe('DiffPanel', () => {
       selectedFile: 'src/main.ts',
     })
 
-    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
     expect(screen.getByText('src/main.ts')).toBeInTheDocument()
   })
 
   it('passes cwd and gitRootHint props through to useGitDiff', () => {
-    render(<DiffPanel sessionId="s1" cwd="/project/subdir" gitRootHint="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+    render(<DiffPanel sessionId="s1" cwd="/project/subdir" gitRootHint="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
     expect(mockUseGitDiff).toHaveBeenCalledWith({
       sessionId: 's1',
@@ -125,7 +127,7 @@ describe('DiffPanel', () => {
   })
 
   it('defaults gitRootHint to undefined when not provided', () => {
-    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
     expect(mockUseGitDiff).toHaveBeenCalledWith({
       sessionId: 's1',
@@ -144,7 +146,7 @@ describe('DiffPanel', () => {
     })
 
     render(
-      <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />
+      <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />
     )
 
     fireEvent.click(screen.getByTestId('file-file.ts'))
@@ -159,7 +161,7 @@ describe('DiffPanel', () => {
       files: [{ path: 'file.ts', status: 'M' }],
     })
 
-    const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+    const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
     // Find the collapse toggle button
     const toggleButton = container.querySelector('button[title*="Collapse"]') ||
@@ -175,7 +177,7 @@ describe('DiffPanel', () => {
       refresh,
     })
 
-    const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+    const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
     const refreshButton = container.querySelector('button[title="Refresh"]')
     expect(refreshButton).toBeInTheDocument()
@@ -192,14 +194,14 @@ describe('DiffPanel', () => {
       isLoading: true,
     })
 
-    const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+    const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
     const spinner = container.querySelector('.animate-spin')
     expect(spinner).toBeInTheDocument()
   })
 
   it('renders Changes header', () => {
-    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
     expect(screen.getByText('Changes')).toBeInTheDocument()
   })
@@ -210,7 +212,7 @@ describe('DiffPanel', () => {
       files: [],
     })
 
-    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+    render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
     // The badge with file count should not appear
     const badge = screen.queryByText('0')
@@ -228,7 +230,7 @@ describe('DiffPanel', () => {
       })
 
       const { rerender } = render(
-        <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode="unified" onDiffViewModeChange={onDiffViewModeChange} />
+        <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode="unified" onDiffViewModeChange={onDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />
       )
 
       expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'unified')
@@ -237,7 +239,7 @@ describe('DiffPanel', () => {
       expect(onDiffViewModeChange).toHaveBeenCalledWith('split')
 
       rerender(
-        <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode="split" onDiffViewModeChange={onDiffViewModeChange} />
+        <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode="split" onDiffViewModeChange={onDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />
       )
       expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'split')
 
@@ -245,7 +247,7 @@ describe('DiffPanel', () => {
       expect(onDiffViewModeChange).toHaveBeenCalledWith('auto')
 
       rerender(
-        <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode="auto" onDiffViewModeChange={onDiffViewModeChange} />
+        <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode="auto" onDiffViewModeChange={onDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />
       )
 
       fireEvent.click(screen.getByTitle('View: Automatic'))
@@ -260,7 +262,7 @@ describe('DiffPanel', () => {
         diffContent: { original: 'old', modified: 'new' },
       })
 
-      render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode="split" onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+      render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode="split" onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
       expect(screen.getByTestId('mock-diff-view')).toHaveAttribute('data-view-mode', 'split')
     })
@@ -273,11 +275,44 @@ describe('DiffPanel', () => {
         diffContent: { original: 'old', modified: 'new' },
       })
 
-      render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode="unified" onDiffViewModeChange={onDiffViewModeChange} />)
+      render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode="unified" onDiffViewModeChange={onDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
       fireEvent.click(screen.getByTitle('View: Unified'))
 
       expect(onDiffViewModeChange).toHaveBeenCalledWith('split')
+    })
+
+    it('toggles word wrap and calls onWordWrapChange', () => {
+      const onWordWrapChange = vi.fn()
+      const onFocusTerminal = vi.fn()
+      mockUseGitDiff.mockReturnValue({
+        ...defaultGitDiff,
+        selectedFile: 'src/main.ts',
+        diffContent: { original: 'old', modified: 'new' },
+      })
+
+      render(
+        <DiffPanel sessionId="s1" cwd="/project" onFocusTerminal={onFocusTerminal} diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={false} onWordWrapChange={onWordWrapChange} />
+      )
+
+      fireEvent.click(screen.getByTitle('Word wrap: Off'))
+      expect(onWordWrapChange).toHaveBeenCalledWith(true)
+      expect(onFocusTerminal).toHaveBeenCalled()
+    })
+
+    it('shows word wrap button as active when wordWrap is true', () => {
+      mockUseGitDiff.mockReturnValue({
+        ...defaultGitDiff,
+        selectedFile: 'src/main.ts',
+        diffContent: { original: 'old', modified: 'new' },
+      })
+
+      render(
+        <DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={true} onWordWrapChange={defaultOnWordWrapChange} />
+      )
+
+      const wrapButton = screen.getByTitle('Word wrap: On')
+      expect(wrapButton.className).toContain('text-obsidian-accent')
     })
 
     it('copies selected file path and filename to clipboard', () => {
@@ -292,7 +327,7 @@ describe('DiffPanel', () => {
         selectedFile: 'src/components/App.tsx',
       })
 
-      render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+      render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
 
       fireEvent.click(screen.getByTitle('Copy relative path'))
       fireEvent.click(screen.getByTitle('Copy filename'))
@@ -307,7 +342,7 @@ describe('DiffPanel', () => {
         files: [{ path: 'file.ts', status: 'M' }],
       })
 
-      const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+      const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
       const immediateRaf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
         cb(0)
         return 1
@@ -342,7 +377,7 @@ describe('DiffPanel', () => {
         files: [{ path: 'file.ts', status: 'M' }],
       })
 
-      const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} />)
+      const { container } = render(<DiffPanel sessionId="s1" cwd="/project" diffViewMode={defaultDiffViewMode} onDiffViewModeChange={defaultOnDiffViewModeChange} wordWrap={defaultWordWrap} onWordWrapChange={defaultOnWordWrapChange} />)
       const immediateRaf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
         cb(0)
         return 1

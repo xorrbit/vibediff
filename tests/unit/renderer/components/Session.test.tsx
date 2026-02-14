@@ -55,6 +55,8 @@ describe('Session', () => {
     onCloseSession: vi.fn(),
     diffViewMode: 'unified' as const,
     onDiffViewModeChange: vi.fn(),
+    wordWrap: false,
+    onWordWrapChange: vi.fn(),
   }
 
   beforeEach(() => {

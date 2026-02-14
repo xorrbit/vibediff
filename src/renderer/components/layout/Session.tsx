@@ -14,6 +14,8 @@ interface SessionProps {
   onCloseSession: (id: string) => void
   diffViewMode: DiffViewMode
   onDiffViewModeChange: (mode: DiffViewMode) => void
+  wordWrap: boolean
+  onWordWrapChange: (enabled: boolean) => void
   ref?: Ref<SessionHandle>
 }
 
@@ -22,7 +24,7 @@ export interface SessionHandle {
 }
 
 export const Session = memo(
-  function Session({ sessionId, cwd, bootstrapCommands, diffCwd, gitRootHint, isActive, onCloseSession, diffViewMode, onDiffViewModeChange, ref }: SessionProps) {
+  function Session({ sessionId, cwd, bootstrapCommands, diffCwd, gitRootHint, isActive, onCloseSession, diffViewMode, onDiffViewModeChange, wordWrap, onWordWrapChange, ref }: SessionProps) {
   const terminalRef = useRef<TerminalHandle>(null)
 
   const handleExit = useCallback(() => {
@@ -69,6 +71,8 @@ export const Session = memo(
             onFocusTerminal={focusTerminal}
             diffViewMode={diffViewMode}
             onDiffViewModeChange={onDiffViewModeChange}
+            wordWrap={wordWrap}
+            onWordWrapChange={onWordWrapChange}
           />
         }
         initialRatio={0.5}

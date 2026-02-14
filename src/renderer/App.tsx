@@ -43,11 +43,22 @@ function AppContent() {
     return (stored === 'unified' || stored === 'split' || stored === 'auto') ? stored : 'unified'
   })
 
+  // Word wrap in diff editor (persisted to localStorage)
+  const [wordWrap, setWordWrap] = useState(() => {
+    return localStorage.getItem('cdw-word-wrap') === 'true'
+  })
+
   // Tab position (persisted to localStorage)
   const [tabPosition, setTabPosition] = useState<TabPosition>(() => {
     const stored = localStorage.getItem('cdw-tab-position')
     return (stored === 'top' || stored === 'left') ? stored : 'top'
   })
+
+  const handleWordWrapChange = useCallback((enabled: boolean) => {
+    setWordWrap(enabled)
+    localStorage.setItem('cdw-word-wrap', String(enabled))
+    window.dispatchEvent(new CustomEvent('word-wrap-change', { detail: { enabled } }))
+  }, [])
 
   const handleTabPositionChange = useCallback((position: TabPosition) => {
     setTabPosition(position)
@@ -282,6 +293,8 @@ function AppContent() {
               onCloseSession={closeSession}
               diffViewMode={diffViewMode}
               onDiffViewModeChange={handleDiffViewModeChange}
+              wordWrap={wordWrap}
+              onWordWrapChange={handleWordWrapChange}
             />
           </div>
         ))
@@ -312,6 +325,8 @@ function AppContent() {
         onDiffViewModeChange={handleDiffViewModeChange}
         tabPosition={tabPosition}
         onTabPositionChange={handleTabPositionChange}
+        wordWrap={wordWrap}
+        onWordWrapChange={handleWordWrapChange}
         automationEnabled={automationEnabled}
         onAutomationToggle={handleAutomationToggle}
       />

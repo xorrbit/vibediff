@@ -14,6 +14,7 @@ interface DiffViewProps {
   diffContent: DiffContent | null
   isLoading: boolean
   viewMode?: DiffViewMode
+  wordWrap?: boolean
 }
 
 const LANGUAGE_MAP: Record<string, string> = {
@@ -101,6 +102,9 @@ const BASE_EDITOR_OPTIONS = {
 const OPTIONS_AUTO = { ...BASE_EDITOR_OPTIONS, renderSideBySide: true, useInlineViewWhenSpaceIsLimited: false }
 const OPTIONS_UNIFIED = { ...BASE_EDITOR_OPTIONS, renderSideBySide: false }
 const OPTIONS_SPLIT = { ...BASE_EDITOR_OPTIONS, renderSideBySide: true, useInlineViewWhenSpaceIsLimited: false }
+const OPTIONS_AUTO_WRAP = { ...OPTIONS_AUTO, wordWrap: 'on' as const }
+const OPTIONS_UNIFIED_WRAP = { ...OPTIONS_UNIFIED, wordWrap: 'on' as const }
+const OPTIONS_SPLIT_WRAP = { ...OPTIONS_SPLIT, wordWrap: 'on' as const }
 
 // Inner component that handles the actual Monaco rendering
 const DiffEditorContent = memo(function DiffEditorContent({
@@ -108,15 +112,17 @@ const DiffEditorContent = memo(function DiffEditorContent({
   modified,
   language,
   viewMode = 'auto',
+  wordWrap = false,
 }: {
   original: string
   modified: string
   language: string
   viewMode?: DiffViewMode
+  wordWrap?: boolean
 }) {
-  const options = viewMode === 'unified' ? OPTIONS_UNIFIED
-    : viewMode === 'split' ? OPTIONS_SPLIT
-    : OPTIONS_AUTO
+  const options = wordWrap
+    ? (viewMode === 'unified' ? OPTIONS_UNIFIED_WRAP : viewMode === 'split' ? OPTIONS_SPLIT_WRAP : OPTIONS_AUTO_WRAP)
+    : (viewMode === 'unified' ? OPTIONS_UNIFIED : viewMode === 'split' ? OPTIONS_SPLIT : OPTIONS_AUTO)
 
   return (
     <MonacoDiffEditor
@@ -131,7 +137,8 @@ const DiffEditorContent = memo(function DiffEditorContent({
     prevProps.original === nextProps.original &&
     prevProps.modified === nextProps.modified &&
     prevProps.language === nextProps.language &&
-    prevProps.viewMode === nextProps.viewMode
+    prevProps.viewMode === nextProps.viewMode &&
+    prevProps.wordWrap === nextProps.wordWrap
   )
 })
 
@@ -146,15 +153,17 @@ interface PoolEntry {
   language: string
 }
 
-// Renders pooled editor instances. Memo'd on pool/viewMode only — NOT filePath.
+// Renders pooled editor instances. Memo'd on pool/viewMode/wordWrap only — NOT filePath.
 // For cached file switches pool doesn't change, so React skips this entire
 // subtree (no virtual DOM creation, no reconciliation, zero work).
 const PoolRenderer = memo(function PoolRenderer({
   pool,
   viewMode,
+  wordWrap,
 }: {
   pool: PoolEntry[]
   viewMode: DiffViewMode
+  wordWrap: boolean
 }) {
   return (
     <>
@@ -171,6 +180,7 @@ const PoolRenderer = memo(function PoolRenderer({
               modified={entry.content.modified}
               language={entry.language}
               viewMode={viewMode}
+              wordWrap={wordWrap}
             />
           </Suspense>
         </div>
@@ -179,7 +189,7 @@ const PoolRenderer = memo(function PoolRenderer({
   )
 })
 
-export const DiffView = memo(function DiffView({ filePath, diffContent, isLoading, viewMode = 'auto' }: DiffViewProps) {
+export const DiffView = memo(function DiffView({ filePath, diffContent, isLoading, viewMode = 'auto', wordWrap = false }: DiffViewProps) {
   const [pool, setPool] = useState<PoolEntry[]>([])
   const prevDiffRef = useRef<DiffContent | null>(null)
   const lruRef = useRef<string[]>([])
@@ -288,7 +298,7 @@ export const DiffView = memo(function DiffView({ filePath, diffContent, isLoadin
     <div className="relative h-full">
       {/* Pooled editors — PoolRenderer memo skips entirely for cached switches */}
       <div ref={poolRef}>
-        <PoolRenderer pool={pool} viewMode={viewMode} />
+        <PoolRenderer pool={pool} viewMode={viewMode} wordWrap={wordWrap} />
       </div>
 
       {/* Loading overlay — shown whenever active file isn't pooled yet */}

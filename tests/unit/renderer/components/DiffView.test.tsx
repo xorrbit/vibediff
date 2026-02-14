@@ -370,6 +370,35 @@ describe('DiffView', () => {
       expect(beta.style.zIndex).toBe('1')
     })
 
+    it('sets wordWrap option when wordWrap prop is true', async () => {
+      const diffEditorMock = vi.mocked(DiffEditor)
+      const diff = { original: 'before', modified: 'after' }
+
+      const { rerender } = render(
+        <DiffView
+          filePath="wrap.ts"
+          diffContent={diff}
+          isLoading={false}
+          wordWrap={false}
+        />
+      )
+
+      await screen.findByTestId('mock-diff-editor')
+      const noWrapProps = diffEditorMock.mock.calls.at(-1)?.[0] as { options: Record<string, unknown> }
+      expect(noWrapProps.options.wordWrap).toBeUndefined()
+
+      rerender(
+        <DiffView
+          filePath="wrap.ts"
+          diffContent={diff}
+          isLoading={false}
+          wordWrap={true}
+        />
+      )
+      const wrapProps = diffEditorMock.mock.calls.at(-1)?.[0] as { options: Record<string, unknown> }
+      expect(wrapProps.options.wordWrap).toBe('on')
+    })
+
     it('changes Monaco options when viewMode changes', async () => {
       const diffEditorMock = vi.mocked(DiffEditor)
       const diff = { original: 'before', modified: 'after' }
