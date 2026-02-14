@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.7 (2026-02-14)
+
+### Features
+
+- **Word wrap toggle for diff viewer** — New toggle button in the diff panel header to enable/disable word wrap; default preference configurable in Settings and persisted to localStorage
+- **AI process detection for 16 more agentic coding CLIs** — Close-tab warning and input-waiting indicator now recognize opencode, aider, gemini, goose, cline, amp, crush, openhands, auggie, droid, kilo, vibe, qwen, copilot, cursor-agent, and kiro-cli; confirmation dialog shows the actual process name instead of hardcoded names
+
+### Performance
+
+- **Faster startup** — Deferred non-critical initialization to reduce time-to-interactive
+- **Eliminated polling restarts on tab switch** — Removed `activeSessionId` from polling dependencies so intervals aren't torn down and recreated on every tab change; session polling now keys off a boolean flag instead of `sessions.length`
+- **Fixed tab drag layout thrashing** — Cached bounding rects during drag-over to eliminate ~60 Hz forced reflows
+
+### Tests
+
+- Hardened runtime and test reliability with IPC parameter validation assertions, terminal selection text length limiting (1 MB cap), and PTY manager improvements
+- New and updated unit tests across watcher, PTY manager, automation API, TextMate grammar loader, keyboard shortcuts, and session hooks
+
 ## 1.2.2 (2026-02-08)
 
 ### Features
