@@ -278,7 +278,7 @@ export function useInputWaiting(
       pollInFlight = true
 
       try {
-        const backgroundSessionIds = sessionIds.filter((sessionId) => sessionId !== activeSessionId)
+        const backgroundSessionIds = sessionIds.filter((sessionId) => sessionId !== activeSessionIdRef.current)
         if (backgroundSessionIds.length === 0) {
           setWaitingIds((previous) => (previous.size === 0 ? previous : new Set()))
           return
@@ -410,7 +410,8 @@ export function useInputWaiting(
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [activeSessionId, sessionIds])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reads activeSessionIdRef.current internally
+  }, [sessionIds])
 
   useEffect(() => {
     if (!activeSessionId) return

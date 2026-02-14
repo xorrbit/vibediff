@@ -24,33 +24,43 @@ export const Tab = memo(function Tab({ id, name, fullPath, isActive, isWaiting, 
   const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
+  const cachedRectRef = useRef<DOMRect | null>(null)
+  const dropPositionRef = useRef<'before' | 'after' | null>(null)
+
   const handleDragStart = useCallback((e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', String(index))
     e.dataTransfer.effectAllowed = 'move'
     setIsDragging(true)
+    // Cache bounding rect at drag start — tabs don't move during a drag
+    if (buttonRef.current) {
+      cachedRectRef.current = buttonRef.current.getBoundingClientRect()
+    }
   }, [index])
 
   const handleDragEnd = useCallback(() => {
     setIsDragging(false)
     setDropPosition(null)
+    cachedRectRef.current = null
+    dropPositionRef.current = null
   }, [])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    if (!buttonRef.current) return
-    const rect = buttonRef.current.getBoundingClientRect()
-    if (vertical) {
-      const midY = rect.top + rect.height / 2
-      setDropPosition(e.clientY < midY ? 'before' : 'after')
-    } else {
-      const midX = rect.left + rect.width / 2
-      setDropPosition(e.clientX < midX ? 'before' : 'after')
+    const rect = cachedRectRef.current ?? buttonRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const newPos = vertical
+      ? (e.clientY < rect.top + rect.height / 2 ? 'before' : 'after')
+      : (e.clientX < rect.left + rect.width / 2 ? 'before' : 'after')
+    if (newPos !== dropPositionRef.current) {
+      dropPositionRef.current = newPos
+      setDropPosition(newPos)
     }
   }, [vertical])
 
   const handleDragLeave = useCallback(() => {
     setDropPosition(null)
+    dropPositionRef.current = null
   }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -62,8 +72,8 @@ export const Tab = memo(function Tab({ id, name, fullPath, isActive, isWaiting, 
     // If dragging forward and dropping "after", the visual target is index itself
     // If dragging backward and dropping "before", same logic applies
     // We need to account for the removal of the source element
-    if (!buttonRef.current) return
-    const rect = buttonRef.current.getBoundingClientRect()
+    const rect = cachedRectRef.current ?? buttonRef.current?.getBoundingClientRect()
+    if (!rect) return
     const isBeforeCenter = vertical
       ? e.clientY < rect.top + rect.height / 2
       : e.clientX < rect.left + rect.width / 2

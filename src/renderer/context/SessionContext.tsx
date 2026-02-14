@@ -130,8 +130,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // Poll for CWD/branch changes and update session names
+  const hasSessions = sessions.length > 0
   useEffect(() => {
-    if (sessions.length === 0) return
+    if (!hasSessions) return
 
     let isUpdating = false
 
@@ -264,7 +265,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       clearInterval(interval)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [sessions.length])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run on 0→non-zero transition; reads sessionsRef internally
+  }, [hasSessions])
 
   // Subscribe to instant CWD updates via OSC 7 shell integration
   useEffect(() => {
