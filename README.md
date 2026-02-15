@@ -19,12 +19,15 @@ IDEs are on borrowed time. The workflow now is: open Claude Code, tell it what y
 - **Instant CWD detection**: Shell integration (bash/zsh/fish) reports directory changes instantly via OSC 7, no polling delay
 - **Smart tab naming**: Tabs show your git branch name, or directory name when on main/master
 - **Multi-tab support**: Multiple sessions with keyboard shortcuts, or double-click the tab bar to open a new tab
-- **AI waiting tab indicator**: Background tabs waiting on Claude/Codex are highlighted with a subtle tint and pulsing icon
+- **Drag-and-drop tab reordering**: Drag tabs to rearrange them, with a visual drop indicator
+- **Switchable tab position**: Move tabs from the top bar to a vertical sidebar on the left via Settings
+- **AI waiting tab indicator**: Background tabs waiting on an AI CLI are highlighted with a subtle tint and pulsing icon. Detected CLIs: Claude, Codex, OpenCode, Aider, Gemini, Goose, Cline, Amp, Crush, OpenHands, Auggie, Droid, Kilo, Vibe, Qwen, Copilot, Cursor Agent, and Kiro
+- **Close tab confirmation**: Prompts before closing a tab when an AI CLI is actively running, showing the process name
 - **Terminal context menu**: Right-click for Copy, Paste, Select All, Clear, and "Open tabs for subdirectories"
 - **Bulk subdirectory tabs**: Right-click and open a tab for every first-level subdirectory of the current working directory — great for multi-repo workspaces
-- **Settings panel**: UI scale (75%–150%), default diff view mode, and automation API toggle — all in one place
+- **Settings panel**: UI scale (75%–150%), default diff view mode, word wrap default, tab position, and automation API toggle — all in one place
 - **WebGL-accelerated terminal**: Hardware-accelerated rendering for smooth scrolling and output
-- **Cross-platform**: macOS, Windows, and Linux
+- **Cross-platform**: macOS, Windows, and Linux — with native x64 and ARM64 builds
 
 ## Installation
 
@@ -75,7 +78,7 @@ Download from the [Releases](https://github.com/xorrbit/claudedidwhat/releases) 
 The diff panel on the right side features:
 - **Floating file list**: Changed files float over the terminal in a collapsible, resizable overlay with color-coded status indicators (Added, Modified, Deleted)
 - **File path header**: Repo-relative path with one-click copy buttons for the full path or just the filename
-- **Diff viewer**: Click any file to view its diff — toggle between Automatic, Unified, and Split view modes
+- **Diff viewer**: Click any file to view its diff — toggle between Automatic, Unified, and Split view modes, with a word wrap toggle for long lines
 - **Branch-only changes**: Only shows files changed in your branch, not unrelated changes from main/master
 - **Instant file switching**: Diff content is cached so switching between files feels instant
 
